@@ -1,0 +1,2 @@
+# documents
+HCL OpenBMC Documents
