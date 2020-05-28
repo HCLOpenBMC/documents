@@ -7,7 +7,7 @@
 | 2    |   Manikandan  |  HSC               |        dbus-sensor(peak_current_power)                 |
 |      |               |                    |        adm1278 driver(psu_sensors)                     |
 +------+---------------+--------------------+--------------------------------------------------------+
-| 3    | Kumar         | IPMI               |         fb-ipmi-oem(ipmi_dev)                                             |
+| 3    | Kumar         | IPMI               |         fb-ipmi-oem(ipmi_dev)                          |
 +------+---------------+--------------------+--------------------------------------------------------+
 | 4    | Jayashree     | Jenkins Automation |     Jenkins_Automation_HclOBMCBranch                   |
 +------+---------------+--------------------+--------------------------------------------------------+
