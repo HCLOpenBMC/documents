@@ -22,48 +22,40 @@ The below component diagram shows the present implementation for postcode and
 history at high-level overview
 
 ```
-+-------------------------------------------+
-|                  BMC                      |
-|                                           |
-| +--------------+     +-----------------+  |    I2C/IPMI  +----+-------------+
-| |              |     |                 |  |  +----------->BIC |             |
-| |              |     |   ipmbbridged   <-----+           |    |     Host1   |
-| |              |     |                 |  |  |           +------------------+
-| | oem handlers |     +-------+---------+  |  | I2C/IPMI  +------------------+
-| |              |             |            |  +----------->BIC |             |
-| |              |             |            |  |           |    |     Host2   |
-| |              |     +-------v---------+  |  |           +------------------+
-| | (fb-ipmi-oem)|     |                 |  |  | I2C/IPMI  +------------------+
-| |              <-----+     ipmid       |  |  +----------->BIC |             |
-| |              |     |                 |  |  |           |    |     Host3   |
-| +-+----+-------+     +-----------------+  |  |           +------------------+
-|   |    |                                  |  | I2C/IPMI  +------------------+
-|   |    |             +-----------------+  |  +----------->BIC |             |
-|   |    |             | Host position   |  |              |    |     HostN   |
-| event  |             |  from D-Bus     |  |              +----+-------------+
-|   |    |             +-------+---------+  |
-|   |  event                   |            |             +-----------------+
-|   |    |                     |            |             |                 |
-|   |  +-v---------------------v---------+  |             | seven segment   |
-|   |  |   phosphor-host-postd           +--+-------------> display         |
-|   |  |     (ipmisnoop)                 |  |             |                 |
-|   |  |   xyz.openbmc_project.State.    |  |             |                 |
-|   |  |   Boot.RawX(0,1,2,..N).Value    <--+-+           +-----------------+
-|   |  +---------------------------------+  | |
-|   |                                       | |  xyz.openbmc_project.
-|   v                                       | |  State.Boot.
-| +--------------------------------------+  | |  PostcodeX(0,1,2..N)  +-----+
-| | +----------------+  +--------------+ |  | |                       |     |
-| | |                |  |              | |  | +----------------------->     |
-| | |  Process1      |  | Process N    | |  |                         | CLI |
-| | |   (host1)      |  |  (hostN)     | |  |                         |     |
-| | |                |  |              | +<--------------------------->     |
-| | +----------------+  +--------------+ |  | /redfish/v1/Systems/    |     |
-| |                                      |  | system/LogServices/     +-----+
-| | Phosphor-post-code-manager@@         |  | PostCodesX(0,1,2..N)
-| +--------------------------------------+  |
-+-------------------------------------------+
-
++----------------------------------+              +--------------------+
+|BMC                               |              |                    |
+|  +-------------------------------+              |                    |
+|  |Phosphor-host-postd            |              |                    |
+|  |                    +----------+              +------------+       |
+|  |                    | LPC      |              |            |       |
+|  |                    |          +<-------------+            |       |
+|  |                    +----------+              |  LPC       |       |
+|  |                               |              |            |       |
+|  |xyz.openbmc_project.State.     +<-------+     +------------+       |
+|  |Boot.Raw.Value                 |        |     |                    |
+|  +------+------------------------+        |     |         Host       |
+|         |                        |        |     |                    |
+|         +                        |        |     |                    |
+|   postcode change event          |        +     +--------------------+
+|         +                        | xyz.openbmc_project.State.Boot.Raw
+|         |                        |        +
+|         v                        |        |      +------------------+
+|  +------+------------------------+        +----->+                  |
+|  |Phosphor-postcode-manager      |               |   CLI            |
+|  |                 +-------------+               |                  |
+|  |                 |   postcode  +<------------->+                  |
+|  |                 |   history   |               |                  |
+|  |                 +-------------+               +------------------+
+|  +-------------------------------+ xyz.openbmc_project.State.Boot.PostCode
+|                                  |
+|                                  |
+|  +-------------------------------+             +----------------------+
+|  |                               |  8GPIOs     |                      |
+|  |     SGPIO                     +-----------> |                      |
+|  |                               |             |     7 segment        |
+|  +-------------------------------+             |     Display          |
+|                                  |             |                      |
++----------------------------------+             +----------------------+
 ```
 ## Requirements
 
@@ -117,10 +109,10 @@ Provided below the post code interface diagram with flow sequence
 |   |  event                   |            |             +-----------------+
 |   |    |                     |            |             |                 |
 |   |  +-v---------------------v---------+  |             | seven segment   |
-|   |  |   phosphor-host-postd                 -----------> display         |
-|   |  |     (ipmisnoop)                                  |                 |
-|   |  |   xyz.openbmc_project.State.                     |                 |
-|   |  |   Boot.RawX(0,1,2,..N).Value    |  | |           +-----------------+
+|   |  |   phosphor-host-postd           +--+-------------> display         |
+|   |  |     (ipmisnoop)                 |  |             |                 |
+|   |  |   xyz.openbmc_project.State.    |  |             |                 |
+|   |  |   Boot.RawX(0,1,2,..N).Value    <--+-+           +-----------------+
 |   |  +---------------------------------+  | |
 |   |                                       | |  xyz.openbmc_project.
 |   v                                       | |  State.Boot.
@@ -135,11 +127,6 @@ Provided below the post code interface diagram with flow sequence
 | | Phosphor-post-code-manager@@         |  | PostCodesX(0,1,2..N)
 | +--------------------------------------+  |
 +-------------------------------------------+
-
-
-@@ - Incase of the single host, only process1 runs for host0. For multi-host
-     one process will be running per host(multi-process).
-
 ```
 
 **Postcode Flow:**
