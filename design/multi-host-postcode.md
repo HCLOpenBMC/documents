@@ -22,40 +22,48 @@ The below component diagram shows the present implementation for postcode and
 history at high-level overview
 
 ```
-+----------------------------------+              +--------------------+
-|BMC                               |              |                    |
-|  +-------------------------------+              |                    |
-|  |Phosphor-host-postd            |              |                    |
-|  |                    +----------+              +------------+       |
-|  |                    | LPC      |              |            |       |
-|  |                    |          +<-------------+            |       |
-|  |                    +----------+              |  LPC       |       |
-|  |                               |              |            |       |
-|  |xyz.openbmc_project.State.     +<-------+     +------------+       |
-|  |Boot.Raw.Value                 |        |     |                    |
-|  +------+------------------------+        |     |         Host       |
-|         |                        |        |     |                    |
-|         +                        |        |     |                    |
-|   postcode change event          |        +     +--------------------+
-|         +                        | xyz.openbmc_project.State.Boot.Raw
-|         |                        |        +
-|         v                        |        |      +------------------+
-|  +------+------------------------+        +----->+                  |
-|  |Phosphor-postcode-manager      |               |   CLI            |
-|  |                 +-------------+               |                  |
-|  |                 |   postcode  +<------------->+                  |
-|  |                 |   history   |               |                  |
-|  |                 +-------------+               +------------------+
-|  +-------------------------------+ xyz.openbmc_project.State.Boot.PostCode
-|                                  |
-|                                  |
-|  +-------------------------------+             +----------------------+
-|  |                               |  8GPIOs     |                      |
-|  |     SGPIO                     +-----------> |                      |
-|  |                               |             |     7 segment        |
-|  +-------------------------------+             |     Display          |
-|                                  |             |                      |
-+----------------------------------+             +----------------------+
++-------------------------------------------+
+|                  BMC                      |
+|                                           |
+| +--------------+     +-----------------+  |    I2C/IPMI  +----+-------------+
+| |              |     |                 |  |  +----------->BIC |             |
+| |              |     |   ipmbbridged   <-----+           |    |     Host1   |
+| |              |     |                 |  |  |           +------------------+
+| | oem handlers |     +-------+---------+  |  | I2C/IPMI  +------------------+
+| |              |             |            |  +----------->BIC |             |
+| |              |             |            |  |           |    |     Host2   |
+| |              |     +-------v---------+  |  |           +------------------+
+| | (fb-ipmi-oem)|     |                 |  |  | I2C/IPMI  +------------------+
+| |              <-----+     ipmid       |  |  +----------->BIC |             |
+| |              |     |                 |  |  |           |    |     Host3   |
+| +-+----+-------+     +-----------------+  |  |           +------------------+
+|   |    |                                  |  | I2C/IPMI  +------------------+
+|   |    |             +-----------------+  |  +----------->BIC |             |
+|   |    |             | Host position   |  |              |    |     HostN   |
+| event  |             |  from D-Bus     |  |              +----+-------------+
+|   |    |             +-------+---------+  |
+|   |  event                   |            |             +-----------------+
+|   |    |                     |            |             |                 |
+|   |  +-v---------------------v---------+  |             | seven segment   |
+|   |  |   phosphor-host-postd           +--+-------------> display         |
+|   |  |     (ipmisnoop)                 |  |             |                 |
+|   |  |   xyz.openbmc_project.State.    |  |             |                 |
+|   |  |   Boot.RawX(0,1,2,..N).Value    <--+-+           +-----------------+
+|   |  +---------------------------------+  | |
+|   |                                       | |  xyz.openbmc_project.
+|   v                                       | |  State.Boot.
+| +--------------------------------------+  | |  PostcodeX(0,1,2..N)  +-----+
+| | +----------------+  +--------------+ |  | |                       |     |
+| | |                |  |              | |  | +----------------------->     |
+| | |  Process1      |  | Process N    | |  |                         | CLI |
+| | |   (host1)      |  |  (hostN)     | |  |                         |     |
+| | |                |  |              | +<--------------------------->     |
+| | +----------------+  +--------------+ |  | /redfish/v1/Systems/    |     |
+| |                                      |  | system/LogServices/     +-----+
+| | Phosphor-post-code-manager@@         |  | PostCodesX(0,1,2..N)
+| +--------------------------------------+  |
++-------------------------------------------+
+
 ```
 ## Requirements
 
@@ -141,10 +149,10 @@ Provided below the post code interface diagram with flow sequence
  - The ipmbbridged(phosphor-ipmi-ipmb) extracts postcode from IPMI message.
  - The ipmbd(phosphor-ipmi-host) appends host information with postcode and
    sends to the phosphor-host-postd.
- - platform specific OEM handler (fb-ipmi-oem) sends postcode by emit-change event
-   to the phosphor-host-postd and phosphor-post-code-manager.
- - phosphor-host-postd displays postcode in the seven segment display based on host
-   position reads through D-bus interface.
+ - platform specific OEM handler(fb-ipmi-oem) sends postcode by emit-change
+   event to the phosphor-host-postd and phosphor-post-code-manager.
+ - phosphor-host-postd displays postcode in the seven segment display based on
+   host position reads through D-bus interface.
  - phosphor-post-code-manager stores the postcode as history in the /var
    directory.
 
@@ -168,6 +176,8 @@ This implementation involves the following changes in the phosphor-host-postd.
  - Create D-Bus service names for single-host and multi-host system
    accordingly. The community follows conventions Host0 for single host and
    Host1 to N for multi-host.
+ - phosphor-host-postd reads the postcode when emit-change event
+   in 'Raw.Value'.
  - phosphor-host-postd reads the host selection from the dbus property.
  - Display the latest postcode of the selected host read through D-Bus.
 
@@ -191,6 +201,8 @@ to comply the community naming scheme.
  - Create D-Bus service names for single-host and multi-host system
    accordingly.The community follows conventions Host0 for single host
    and Host1 to N for multi-host.
+ - phosphor-post-code-manager reads the postcode when emit-change
+   event in 'Raw.Value'.
  - Store/retrieve post-code from directory (/var/lib/phosphor-post-code-manager/
    hostX(0,1,2,3..N)) based on event received from phosphor-host-postd
 
