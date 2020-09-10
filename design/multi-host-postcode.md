@@ -35,12 +35,12 @@ history at high-level overview
 |  |Boot.Raw.Value                 |        |     |                    |
 |  +------+------------------------+        |     |         Host       |
 |         |                        |        |     |                    |
-|         +                        |        |     |                    |
+|         |                        |        |     |                    |
 |   postcode change event          |        +     +--------------------+
-|         +                        | xyz.openbmc_project.State.Boot.Raw
+|         |                        | xyz.openbmc_project.State.Boot.Raw
 |         |                        |        +
-|         v                        |        |      +------------------+
-|  +------+------------------------+        +----->+                  |
+|         |                        |        |      +------------------+
+|  +------v------------------------+        +----->+                  |
 |  |Phosphor-postcode-manager      |               |   CLI            |
 |  |                 +-------------+               |                  |
 |  |                 |   postcode  +<------------->+                  |
@@ -51,7 +51,7 @@ history at high-level overview
 |                                  |
 |  +-------------------------------+             +----------------------+
 |  |                               |  8GPIOs     |                      |
-|  |     SGPIO                     +-----------> |                      |
+|  |     SGPIO                     +------------>+                      |
 |  |                               |             |     7 segment        |
 |  +-------------------------------+             |     Display          |
 |                                  |             |                      |
