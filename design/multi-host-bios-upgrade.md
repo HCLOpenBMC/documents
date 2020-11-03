@@ -15,13 +15,13 @@ As the open BMC architecture is evolving, the single host support becomes
 contingent and needs multiple-host bios update to be implemented.
 
 ## Requirements
-
+multi-host bios update will be implemented, so that,
+-  the user can do bios update for multiple hosts with single bios image.
+- during bios-update, the user can specify the actual host that he wanted to do the bios-update.
 
 ## Proposed Design
-
-Create a property that the user specifies for which Host they want to update. 
-This would require creating the /xyz/openbmc_project/software/hostX interfaces 
-and the new property when the BMC starts up. Then for example:
+1. Number of host will be identified from machine layer [OBMC_HOST_INSTANCES]
+2. create a property that the user specifies for which Host they want to update. This would require creating the /xyz/openbmc_project/software/hostX (X will be based on OBMC_HOST_INSTANCES) interfaces and the new property when the BMC starts up. Then for example:
  - User sets the new "this should be updated" property for host1 and
 host3.
  - User calls the Redfish API and select the bios image to upload.
@@ -33,21 +33,33 @@ having "this should be updated" property set.
  - The property "this should be updated" will be set to default after the successful
 completion of bios-update.
 
+### Redfish API
+In mullti-host system, before the User calls bios-update API,  he may need to call N number of Redfish API commands to set "this should be updated" property per host.
+
+For example, If the user wanted to update the same image for host1 and host 3 then the command would be look something like below.
+For Host1,
+```
+curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host1.TobeUpdated -d '{"Value": "true"}'
+```
+For Host2,
+```
+curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host2.TobeUpdated -d '{"Value": "true"}'
+```
+Then to update the firmware,
+```
+curl -u root:0penBmc -curl k -s  -H "Content-Type: application/octet-stream" -X POST -T <image file path> https://${BMC}/redfish/v1/UpdateService
+```
+
 ## Alternatives Considered
 
 ### Design 1
 
- - Number of host will be identified from machine layer [OBMC_HOST_INSTANCES]
+1. Number of host will be identified from machine layer [OBMC_HOST_INSTANCES]
 
- - Code will be modified to create n number of objects based on number of hosts
+2. Code will be modified to create n number of objects based on number of hosts 
+   like below
 
-  Ex: Log taken in YosemiteV2 [4 host]
-
-root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.BMC.Updater
-`-/xyz
-  `-/xyz/openbmc_project
-    `-/xyz/openbmc_project/software
-      |-/xyz/openbmc_project/software/1929c585
+```
       |-/xyz/openbmc_project/software/host1
       | `-/xyz/openbmc_project/software/host1/28bd62d9
       |-/xyz/openbmc_project/software/host2
@@ -56,31 +68,25 @@ root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.BMC.Updater
       | `-/xyz/openbmc_project/software/host3/28bd62d9
       `-/xyz/openbmc_project/software/host4
         `-/xyz/openbmc_project/software/host4/28bd62d9
-root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.Version
-`-/xyz
-  `-/xyz/openbmc_project
-    `-/xyz/openbmc_project/software
-      |-/xyz/openbmc_project/software/host1
-      | `-/xyz/openbmc_project/software/host1/28bd62d9
-      |-/xyz/openbmc_project/software/host2
-      | `-/xyz/openbmc_project/software/host2/28bd62d9
-      |-/xyz/openbmc_project/software/host3
-      | `-/xyz/openbmc_project/software/host3/28bd62d9
-      `-/xyz/openbmc_project/software/host4
-        `-/xyz/openbmc_project/software/host4/28bd62d9
+```
 
+3. This will create activation interface for each host. For a multi-host system 
+if the  RequestedActivation is set to 
+"xyz.openbmc_project.Software.Activation.RequestedActivations.Active", 
+then different bios service file will be called based the host.
 
- - This will create activation interface for each host. For a multi-host system if the  RequestedActivation is set to "xyz.openbmc_project.Software.Activation.RequestedActivations.Active", then different bios service file will be called based the host.
+For single host : 
+biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
+For multi host  : 
+biosServiceFile =  "obmc-flash-host" + host + "-bios@" + versionId + ".service";
 
-For single host : biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
-For multi host  : biosServiceFile =  "obmc-flash-host" + host + "-bios@" + versionId + ".service";
-
-
-Then it can be used for multi host even if the firmware image we want to install is the same for multiple host targets.
+Then it can be used for multi host even if the firmware image we want to 
+install is the same for multiple host targets.
 
 #### Reason for rejection
 
-Even after the successful activation of bios update, the image will not be deleted from the BMC.We dont want to potentially fill up the /tmp space.
+Even after the successful activation of bios update, the image will not be deleted 
+from the BMC.We dont want to potentially fill up the /tmp space.
 
 ### Design 2
 
