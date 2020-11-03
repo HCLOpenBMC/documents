@@ -21,8 +21,37 @@ multi-host bios update will be implemented, so that,
 
 ## Proposed Design
 1. Number of host will be identified from machine layer [OBMC_HOST_INSTANCES]
-2. create a property that the user specifies for which Host they want to update. This would require creating the /xyz/openbmc_project/software/hostX (X will be based on OBMC_HOST_INSTANCES) interfaces and the new property when the BMC starts up. Then for example:
- - User sets the new "this should be updated" property for host1 and
+2. create a property that the user specifies for which Host they want to update. This would require creating the /xyz/openbmc_project/software/hostX (X will be based on OBMC_HOST_INSTANCES) interfaces and the new property when the BMC starts up. 
+-For multi host system [ Ex: 4 hosts] the objects will look like below.
+```
+root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.BMC.Updater
+`-/xyz
+  `-/xyz/openbmc_project
+    `-/xyz/openbmc_project/software
+      |-/xyz/openbmc_project/software/a81bb606
+      |-/xyz/openbmc_project/software/host1
+      |-/xyz/openbmc_project/software/host2
+      |-/xyz/openbmc_project/software/host3
+      `-/xyz/openbmc_project/software/host4
+      
+root@yosemitev2:/tmp/images# busctl introspect xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/host1
+NAME                                         TYPE      SIGNATURE RESULT/VALUE FLAGS
+org.freedesktop.DBus.Introspectable          interface -         -            -
+.Introspect                                  method    -         s            -
+org.freedesktop.DBus.Peer                    interface -         -            -
+.GetMachineId                                method    -         s            -
+.Ping                                        method    -         -            -
+org.freedesktop.DBus.Properties              interface -         -            -
+.Get                                         method    ss        v            -
+.GetAll                                      method    s         a{sv}        -
+.Set                                         method    ssv       -            -
+.PropertiesChanged                           signal    sa{sv}as  -            -
+xyz.openbmc_project.Software.HostToBeUpdated interface -         -            -
+.HostToBeUpdated                             property  b         false        emits-change writable
+root@yosemitev2:/tmp/images# 
+```
+If the user wanted to update the same image for host1 and host 3 then for example:
+ - User sets the new "HostToBeUpdated" property for host1 and
 host3.
  - User calls the Redfish API and select the bios image to upload.
  - The BMC updater sees it's a host bios image and calls the bios_X updater 
@@ -30,11 +59,11 @@ script for only the host  instances that have the "this should be updated"
 property set.
  - The bios- image will be deleted after successfully updating all the hosts 
 having "this should be updated" property set.
- - The property "this should be updated" will be set to default after the successful
+ - The property "HostToBeUpdated" will be set to default after the successful
 completion of bios-update.
 
 ### Redfish API
-In mullti-host system, before the User calls bios-update API,  he may need to call N number of Redfish API commands to set "this should be updated" property per host.
+In mullti-host system, before the User calls bios-update API,  he may need to call N number of Redfish API commands to set "HostToBeUpdated" property per host.
 
 For example, If the user wanted to update the same image for host1 and host 3 then the command would be look something like below.
 For Host1,
@@ -100,5 +129,11 @@ delete image.
 
 The MANIFEST file is an  factory ship-out, it may not be appropriate to add the 
 host IDs into it.
+
+## Impacts
+None
+
+## Testing
+meta-yosemitev2 is a multi-host system [4 host]. This feature will be tested there.
 
 
