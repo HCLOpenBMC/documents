@@ -1,5 +1,4 @@
-
-# Multi-host Bios update Support
+# Multi-host Bios Update Support
 
 Author: Priyatharshan P, [priyatharshanp@hcl.com]
 
@@ -9,32 +8,44 @@ Created: Nov 04,2020
 
 ## Problem Description
 
-The current implementation in the phosphor-bmc-code-mgmt supports only single host bios update.
+The current implementation in the phosphor-bmc-code-mgmt supports only single
+host bios update.
 
-As the open BMC architecture is evolving, the single host support becomes contingent and needs multiple-host bios update to be implemented.
+As the open BMC architecture is evolving, the single-host-bios-update support
+becomes contingent and needs multi-host-bios-update to be implemented for the
+multi-host environment.
 
 ## Requirements
-The multi-host bios update implementation considers the following requirement.
--  Single bios image can be used for multiple hosts bios update. 
--  User to configure the required hosts (multi-host) for bios update.
+The multi-host bios update implementation considers the following requirements.
+- Loading single bios image into multiple host as applicable.
+- User to configure the list of hosts needing upgrade.
+- The bios image to be deleted after updating all the hosts configured for
+  upgrade.
+
 ## Proposed Design
-This document proposes a new design engaging a phosphor-bmc-code-mgmt to update bios image for multi host system. Provided below the implementation steps.
+This document proposes a new design engaging a phosphor-bmc-code-mgmt to update
+bios image for multi host system. Provided below the implementation steps.
 - phosphor-dbus-interfaces changes
-	- Create a new biosUpdate interface
+    - Create a new biosUpdate interface
 - phosphor-bmc-code-mgmt changes
-	- Host Identification
-	- New hostX objects creation
-	- Bios image clean up
-	- Property reset in biosUpdate interface
-	- Multi-host bios update flow
+    - Host Identification
+    - New hostX objects creation
+    - Bios image clean up
+    - Property reset in biosUpdate interface
+    - Multi-host bios update flow
 - Redfish & busctl API
 
 ### Create a new biosUpdate interface:
-In single host system the firmware update command can be called directly. But in multi host system before firmware update we need to specify some where what and all the hosts are going to be updated.
+In the existing single host system, the firmware update command will be called
+directly for the bios update and the image will be deleted after successful
+update.
 
-So the new interface with a property, where user specifies for which Host they want to update will be created in phosphor-dbus-interfaces.
-
-The new interface will be having the following property.
+But in the multi host system, before bios update, user needs to specify the
+list of hosts which requires bios update. As multi-host support is a new
+implementation, there is no property to hold which host to be updated.
+Hence, creating a new interface through phosphor-dbus-interfaces with the 
+property “biosUpdate” as shown below to notify the bmc to trigger the bios
+update for the hosts.
 ```
 properties:
     - name: biosUpdate
@@ -43,16 +54,22 @@ properties:
       description: >
         The host identifier for bios update.
 ```
+When this Boolean flag is set to TRUE for a host, the bios of the respective
+host will be updated.
+
 ### Host Identification
-Number of hosts will be identified from machine layer (OBMC_HOST_INSTANCES)
+Number of hosts presence on the bmc will be identified through the
+machine layer (OBMC_HOST_INSTANCES)
+
 N = OBMC_HOST_INSTANCES
 
-### New hostX objects creation
+### New HostX objects creation
 
-create the /xyz/openbmc_project/software/hostX (Where X = 1,2,...N)  
-with the new interface created.
+One object per host (/xyz/openbmc_project/software/hostX (Where X = 1,2,...N))
+will be created with the new interface.
 
-For Example, In a multi host system [ 4 hosts] the objects will look like below:
+For Example, In a multi host system [ 4 hosts] the objects will look like
+below:
 ```
 root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.BMC.Updater
 `-/xyz
@@ -63,67 +80,98 @@ root@yosemitev2:~# busctl tree xyz.openbmc_project.Software.BMC.Updater
       |-/xyz/openbmc_project/software/host2
       |-/xyz/openbmc_project/software/host3
       `-/xyz/openbmc_project/software/host4
- ```  
+ ```
 
-Before firmware update the user should specify what are all the hosts are going to be updated by setting the property biosUpdate to "true" in each host interfaces.
+Before bios update, the user should set the property biosUpdate to "true"
+for all the host which requires update. The interface would look like,
+```
+root@yosemitev2:~# busctl introspect xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/host1
+NAME                                         TYPE      SIGNATURE RESULT/VALUE FLAGS
+org.freedesktop.DBus.Introspectable          interface -         -            -
+.Introspect                                  method    -         s            -
+org.freedesktop.DBus.Peer                    interface -         -            -
+.GetMachineId                                method    -         s            -
+.Ping                                        method    -         -            -
+org.freedesktop.DBus.Properties              interface -         -            -
+.Get                                         method    ss        v            -
+.GetAll                                      method    s         a{sv}        -
+.Set                                         method    ssv       -            -
+.PropertiesChanged                           signal    sa{sv}as  -            -
+xyz.openbmc_project.Software.HostBiosUpdate interface -         -            -
+.biosUpdate                             property  b         false        emits-change writable
+```
 
 ### Bios image clean up
-In single host system the bios- image will be deleted after the successful firmware update.But here in multi-host system the image will be deleted only after successful updation of all hosts having  "biosUpdate" property set.
+In single host system, the bios-image will be deleted after the successful
+firmware update. But in multi-host system, the image has to be deleted only
+after successfully updating of all the hosts having "biosUpdate" property set.
+
+The image delete logic in the existing will be update to account “biosUpdate”
+property of all the host system. When this flag is false of all the associated
+host, the image will be deleted.
 
 ### Property reset in biosUpdate interface
-After successful completion, the property "biosUpdate" will  set back to default value in all the hostX objects. So that it can be used for next bios update.
+After successful completion, the property "biosUpdate" will  be reset back to
+default value in the hostX [X = 1, 2, …N] objects
 
 ### Multi-host bios update flow
-If the user wanted to update the same image for host1 and host 3 then:
- - User sets the new "biosUpdate" property for host1 and
-host3.
- - User calls the Redfish API and select the bios image to upload.
- - The BMC updater sees it's a host bios image and calls the bios_X updater script for only the host  instances that have the "biosUpdate" property set.
- - The bios- image will be deleted after successfully updating all the hosts 
-having "biosUpdate" property set.
- - The property "biosUpdate" will be set to default after the successful
-completion of bios-update.
+If the user wants to update the same image for host1 and host 3 then:
 
-### Redfish & busctl API
-In mullti-host system, before the User calls bios-update API,  he may need to call N number of set  API commands to set "biosUpdate" property per host.
+-   User sets the new "biosUpdate" property for host1 and host3 to TRUE.
+-   User calls the Redfish API and select the bios image to upload.
+-   The BMC updater calls the bios_X updater script for only the host
+    instances having TRUE in the "biosUpdate" property.
+-   The bios-image will be deleted after successfully updating all the hosts.
+-   The property "biosUpdate" will be reset to default after the successful
+    completion of bios-update.
 
-For example, If the user wanted to update the same image for host1 and host 3 then the command would be look something like below.
+### Assumption
+User to know host and slot mapping details to trigger the bios update for
+the required  host.
+
+### Redfish  & busctl API commands
+In mullti-host system, before the User calls bios-update API,  he may need to
+call N number of set  API commands to set "biosUpdate" property per host.
+For example, If the user wanted to update the same image for host1 and host 3
+then the command would be look something like below.
+
+#### Using busctl
 For Host1:
-busctl:
 ```
 busctl set-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/host1 xyz.openbmc_project.Software.biosUpdate biosUpdate b true
 ```
-Redfish:
-```
-curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host1.TobeUpdated -d '{"Value": "true"}'
-```
 For Host3:
-busctl:
 ```
 busctl set-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/host3 xyz.openbmc_project.Software.biosUpdate biosUpdate b true
 ```
-Redfish:
-```
-curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host2.TobeUpdated -d '{"Value": "true"}'
-```
-Then to update the firmware,
-busctl:
+Then to update the firmware image,
 ```
 busctl set-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/<id> xyz.openbmc_project.Software.Activation RequestedActivation s xyz.openbmc_project.Software.Activation.RequestedActivations.Active
 ```
-Redfish:
+#### Using Redfish:
+Following commands could possibly be considered for the redfish support.
+
+For Host1:
+```
+curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host1.BiosUpdate -d '{"Value": "true"}'
+```
+For Host3:
+```
+curl -g -k -H "X-Auth-Token: $token" https://${bmc}/redfish/v1/Host/Actions/host3.BiosUpdate -d '{"Value": "true"}'
+```
+Then to update the firmware image,
 ```
 curl -u root:0penBmc -curl k -s  -H "Content-Type: application/octet-stream" -X POST -T <image file path> https://${BMC}/redfish/v1/UpdateService
 ```
 
 ## Alternatives Considered
 
-### Design 1
+### Design 1: Multi Interface Approach
 
 1. Number of host will be identified from machine layer [OBMC_HOST_INSTANCES]
 
-2. Code will be modified to create n number of objects based on number of hosts 
-   like below
+2. Code will be modified to create n number of objects based on number of
+hosts like below
 
 ```
       |-/xyz/openbmc_project/software/host1
@@ -136,41 +184,42 @@ curl -u root:0penBmc -curl k -s  -H "Content-Type: application/octet-stream" -X 
         `-/xyz/openbmc_project/software/host4/28bd62d9
 ```
 
-3. This will create activation interface for each host. For a multi-host system 
-if the  RequestedActivation is set to 
-"xyz.openbmc_project.Software.Activation.RequestedActivations.Active", 
+3. This will create activation interface for each host. For a multi-host
+system if the  RequestedActivation is set to
+ "xyz.openbmc_project.Software.Activation.RequestedActivations.Active",
 then different bios service file will be called based the host.
 
-For single host : 
+For single host :
 biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
-For multi host  : 
-biosServiceFile =  "obmc-flash-host" + host + "-bios@" + versionId + ".service";
+For multi host  :
+biosServiceFile =  "obmc-flash-host" + host + "-bios@" + versionId +
+".service";
 
-Then it can be used for multi host even if the firmware image we want to 
+Then it can be used for multi host even if the firmware image we want to
 install is the same for multiple host targets.
 
-#### Reason for rejection
+#### Disadvantages
 
-Even after the successful activation of bios update, the image will not be deleted 
-from the BMC.We dont want to potentially fill up the /tmp space.
+Even after the successful activation of bios update, the image will not be
+deleted from the BMC.We dont want to potentially fill up the /tmp space.
 
-### Design 2
+### Design 2 : MANIFEST File Changes Approach
 
-Host id will be added as an array of host id in extra version field in the 
-MANIFEST file.Format can be defined, this way as soon as we see bios image 
-uploaded and based on extra version, it will create as many version interface 
-and allow to activate them. Once we call all the bios upgrade script, we should 
-delete image.
+Host id will be added as an array of host id in extra version field in the
+MANIFEST file.Format can be defined, this way as soon as we see bios image
+uploaded and based on extra version, it will create as many version
+interface and allow to activate them. Once we call all the bios upgrade
+script, we should delete image.
 
-#### Reason for rejection
+#### Disadvantages
 
-The MANIFEST file is an  factory ship-out, it may not be appropriate to add the 
-host IDs into it.
+The MANIFEST file is an  factory ship-out, it may not be appropriate to add
+the host IDs into it.
 
 ## Impacts
 None
 
 ## Testing
-meta-yosemitev2 is a multi-host system [4 host]. This feature will be tested 
-here in meta-yosemitev2.
+meta-yosemitev2 is a multi-host system [4 host]. This feature will be
+tested there.
 
