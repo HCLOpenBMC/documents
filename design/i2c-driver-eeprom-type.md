@@ -8,78 +8,85 @@ Author:
 other contributors:
 
 created:
-    Dec 3, 2021
+    Dec 8, 2021
 
 ## Problem Description
+
 The current implementation in entity-manager FRU device application
-supports EEPROM one byte or two byte identification. But, this
-implementation is not properly working for our platform. Also, unable
-to fix this issue without EEPROM write. It may leads to EEPROM
-corruption. So, existing logic cannot be used.
+supports EEPROM single byte or two byte identification. But, this
+implementation does not work in all the machine. Also there is a chance 
+of data corruption in the logic when it does EEPROM write.
 
 We have an FRU that contain types of oem, one type of oem supports
 one byte EEPROM another type of oem supports two byte EEPROM,
 so we need to identify which type of EEPROM byte type is present
-for our platform.
+in yosemitev2 machine.
 
 ## Background and References
-Existing FRU device implementation of device byte type identification
 
-The current entity-manager FRU device application identifies one byte or
+Existing FRU device implementation of device byte type identification:
+
+The current entity-manager FRU device application identifies single byte or
 two byte EEPROM type using byte read and write logic.
 
 https://github.com/openbmc/entity-manager/blob/master/src/FruDevice.cpp#L197
 
-Our platform supports two types of NIC card, one is Broadcom NIC
-and another one is Mellanox NIC, Broadcom NIC supports one byte EEPROM and
-Mellanox NIC supports two byte EEPROM.
+Our yosemitev2 machine supports two types of NIC card, Broadcom NIC has
+FRU details in single byte EEPROM and Mellanaox NIC has FRU details 
+stored in two byte EEPROM.
 
-Here, we mentioned link of NIC specification,
+Here, we mentioned link of OCP NIC specification,
 https://www.opencompute.org/documents/facebook-ocp-mezzanine-20-specification
 
 ## Requirements
 
-* Need to identify one byte or two byte EEPROM (Broadcom or Mellanox).
-* To get the EEPROM type one byte or two byte at patform level.
+* Need to identify single byte or two byte EEPROM (Broadcom or Mellanox).
+* To get the EEPROM type single byte or two byte at platform level.
 * Entity-manager should read this EEPROM type from machine layer.
-* This byte type identification logic in enetity-manager should be generic
+* This byte type identification logic in entity-manager should be generic
   for all the platforms.
 
 ## Proposed Design
-In this implementation creates a new generic cpp(.cpp)file in
-entity-manager to read from the script file, and which is used to identify
-the byte type to update the EEPROM type dynamically at the run time
-as well as dbus property.
 
 This document proposes a new design engaging the FRU device to read the
-EEPROM device byte one byte or two byte from the machine layer.
+EEPROM device byte single byte or two byte from the machine layer.
 
-In machine layer, EEPROM device byte type(one byte or two byte) can be 
-identified using platform specific service from NIC manufacturer 
-infrormation.
+This implementation proposed to initiate the service from entity-manager,
+that service identifies whether this particular machine has single byte
+EEPROM or two byte EEPROM. then this EEPROM device type will be updated in 
+the dbus property by entity-manager.
+
+In machine layer, EEPROM device byte type(single byte or two byte) can be
+identified using platform specific service from NIC manufacturer
+information.
 
 This byte type identification logic in enetity-manager should be generic
 for all the platforms. The entity-manager to read this information dynamically
-from the platforms and populate the EEPROM byte type information in dbus.
+from the platforms and populate the EEPROM byte type information in dbus
+as a property.
 
 FRU device application should read the byte information from dbus and
-existing device type logic can be replaced with this logic.
+existing device byte type logic can be replaced with this logic.
 
 Following modules will be updated for this implementation
 * Entity-manager
 * Machine layer
 
 ## Alternatives Considered
-An approch has been tried with identifing the EEPROM byte type from
-platform specific service and added probe field with compatible string in entity-manager
-platform specific config file. But, In entity-manager dbus properties doesn't
-have write permission. So EEPROM byte cannot updated in dbus.
 
-This new cpp file creation approch in entity-manager can be more suitable
-to handle EEPROM device byte type identification.
+An approch has been tried with identifing the EEPROM byte type from the
+platform specific service and added probe field with compatible string
+in entity-manager platform specific config file. But, In entity-manager
+dbus properties doesn't have write permission. So EEPROM byte type cannot
+be updated in dbus property.
+
+This new generic function creation approch in entity-manager can be more
+suitable to handle EEPROM device byte type identification.
 
 ## Impacts
+
 This is for machine specific so less impact.
 
 ## Testing
+
 Testing with yosemitev2 platform.
