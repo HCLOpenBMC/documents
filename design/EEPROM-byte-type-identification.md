@@ -14,7 +14,7 @@ created:
 
 The current implementation in entity-manager FRU device application
 supports EEPROM single byte or two byte identification. But, this
-implementation does not work in all the machine. Also there is a chance 
+implementation does not work in all the machine. Also there is a chance
 of data corruption in the logic when it does EEPROM write.
 
 We have an FRU that contain types of oem, one type of oem supports
@@ -32,10 +32,10 @@ two byte EEPROM type using byte read and write logic.
 https://github.com/openbmc/entity-manager/blob/master/src/FruDevice.cpp#L197
 
 Our yosemitev2 machine supports two types of NIC card, Broadcom NIC has
-FRU details in single byte EEPROM and Mellanaox NIC has FRU details 
+FRU details in single byte EEPROM and Mellanaox NIC has FRU details
 stored in two byte EEPROM.
 
-Here, we mentioned link of OCP NIC specification,
+Below is the link to OCP NIC specification,
 https://www.opencompute.org/documents/facebook-ocp-mezzanine-20-specification
 
 ## Requirements
@@ -51,14 +51,14 @@ https://www.opencompute.org/documents/facebook-ocp-mezzanine-20-specification
 This document proposes a new design engaging the FRU device to read the
 EEPROM device byte single byte or two byte from the machine layer.
 
-This implementation proposed to initiate the service from entity-manager,
-that service identifies whether this particular machine has single byte
-EEPROM or two byte EEPROM. then this EEPROM device type will be updated in 
+This implementation is proposed to initiate the service from entity-manager,
+the service identifies whether this particular machine has single byte
+EEPROM or two byte EEPROM. then this EEPROM device type will be updated in
 the dbus property by entity-manager.
 
 In machine layer, EEPROM device byte type(single byte or two byte) can be
 identified using platform specific service from NIC manufacturer
-information.
+information. This service will be specific and installed in machine layer.
 
 This byte type identification logic in enetity-manager should be generic
 for all the platforms. The entity-manager to read this information dynamically
