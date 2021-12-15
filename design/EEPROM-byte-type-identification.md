@@ -49,36 +49,30 @@ http://files.opencompute.org/oc/public.php?service=files&t=3c8f57684f959c5b7abe2
 
 ## Proposed Design
 
-This document proposes a new design engaging the FRU device to read the
-EEPROM device byte, single byte or two byte from the machine layer.
-
-This implementation is proposed to initiate the service from entity-manager
-configuration file, the service is initiate when the flag is set(machine specific)
-and which identifies whether this particular machine has single byte EEPROM or
-two byte EEPROM. then this EEPROM device type will be updated in the dbus property
-by entity-manager.
-
-In machine layer, EEPROM device byte type(single byte or two byte) can be
-identified using platform specific service from NIC manufacturer
-information. This service will be specific and installed in machine layer.
+This document proposes a new design engaging the FRU device to find the EEPROM
+device byte type, as single byte or two byte from the machine layer and read
+this device byte type via D-bus.
 
 The implementation flow of EEPROM byte type identification:
 
-1) In entity-manager json configuration file, creates a flag to enabling the
-   service file, which is initiate when the flag is set.
+1) The flag has been created to enable the EEPROM device byte identification
+   service in entity-manager config file.
 
-2) Whenever the flag is set in entity-manager configuration, the particular machine
-   specific code will be be executed otherwise the existing logic executes.
+2) If the flag is set in entity-manager configuration, the particular machine
+   specific service will be be executed. If not set the existing
+   logic will be executed.
 
-3) The sevice or script output(single byte or two byte) was given back to
-   the service, where it's initiated.
+3) The platform specific service shall execute the script which parses the NIC
+   manufacturer information like Broadcom or Mellanox from NIC information
+   and get the EEPROM device byte type can be identified as single byte
+   (Broadcom) or two byte(Mellanox).
 
-4) Then the service or script output populates the EEPROM byte type in
-   dbus property by entity-manager.
+4) This service will return the output (single byte or two byte) to the service
+   initiated from FruDevice and get the byte type using sdbusplus call and
+   updated those byte type information in FruDevice D-bus.
 
-5) Finally the FRU device application will read from the dbus property and update
-   which type of EEPROM either single byte EEPROM or two byte EEPROM in our
-   yosemitev2 machine.
+5) Finally the FRU device will read and use the byte type(single byte
+   or two byte)from the D-bus.
 
 This byte type identification logic in entity-manager should be generic
 for all the platforms.
