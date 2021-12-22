@@ -124,7 +124,7 @@ for the examples below consider that the inventory contains only images type of
                 └─/xyz/openbmc_project/software/1a56bff3/bios  # Activation
 
 ```
-- **multi-host, "CPLD" image type detected
+- **multi-host, "CPLD" image type detected**
 ```
         $ busctl tree xyz.openbmc_project.Software.Host.Updater
         └─/xyz
@@ -159,7 +159,7 @@ ImageID "1a56bff3", the ImageType "BIOS" and the HostID "1":
 ```
     [Unit]
     Description=host service flash, the %i can be in the form \\
-                     imageid-imagetype-hostid (minus sign between them)
+                     imageid-imagetype-hostid
      
     [Service]
     Type=exec
@@ -178,14 +178,15 @@ activated performing in this case parallel update.
 - After successful activation the image may be deleted if the requirements
 match (see Image Cleaning section).
 
-### Software Update Status and Progress
-Software update process can be tracked using Completion Status and Progress
+### Software Update Completion Status and Progress
+Software update process can be tracked using CompletedStatus and Progress
 D-bus properties.
 
-The interface "xyz.openbmc_project.Software.Status" will be created to have
-Completed Status and Progress D-bus properties.
+The interface "xyz.openbmc_project.Software.CompletionStatus" will be created
+under "xyz.openbmc_project.oem_firmware_update" service to have CompletedStatus
+and Progress D-bus properties.
 
-Completion Status : This dbus property is used to get the software update
+CompletedStatus : This dbus property is used to get the software update
 completion status. This is boolean Dbus-property which is disabled by
 default and enabled only if the software update process is completed.
 
@@ -193,8 +194,11 @@ Progress : This dbus property is used to get the software update progress
 or completion percentage. This is unsigned integer Dbus-property which
 have completed percentage and it's calculated based on image size.
 
+ItemUpdater will read this CompletedStatus and Progress D-bus properties from
+"xyz.openbmc_project.oem_firmware_update" service.
+
 ```
- xyz.openbmc_project.Software.Status interface -  -     -
+ xyz.openbmc_project.Software.CompletionStatus interface -  -     -
  .Progress                           property  d  50    emits-change writable
  .CompletedStatus                    property  b  false emits-change writable
 ```
@@ -205,12 +209,21 @@ software/firmware update.
 
 But in this new approach, The software update is performed in all the
 required devices/hosts identified by the ItemUpdater and Activation flag,
-then the image is removed from disk if D-bus property "AutoDeletion" flag
+then the image is removed from disk if D-bus property "AutoDelete" flag
 is enabled.
 
-New D-bus property "AutoDeletion" can be added under
+"AutoDelete" flag option is added to delete only for required device/hosts
+as per compatible image types if this "AutoDelete" flag is enabled and user
+not decided to do furthur updates. if this flag is not enabled, user has to
+remove the image manually.
+
+For example : Four hosts are compatible with this image and user wants only
+two hosts to be updated now and two hosts later. In this case, image delete
+should not be done. So AutoDelete flag is used to handle this case.
+
+New D-bus property "AutoDelete" can be added under
 "xyz.openbmc_project.Object.Delete" interface for removing the images from
-disk once the image update is completed. if "AutoDeletion" is disabled the
+disk once the image update is completed. if "AutoDelete" is disabled the
 image will not be removed from the disk. User has to remove the image
 manually.
 
