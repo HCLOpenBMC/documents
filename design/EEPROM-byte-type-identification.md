@@ -1,14 +1,14 @@
 # Platform specific EEPROM device type identification
 
 Author:
-   Karthikeyan P(karthik), [pkarthikey@hcl.com](mailto:pkarthikey@hcl.com)
+   Karthikeyan P(karthik), [p_karthikeya@hcl.com](mailto:p_karthikeya@hcl.com)
    Kumar Thangavel(kumar), [thangavel.k@hcl.com](mailto:thangavel.k@hcl.com)
    Velumani T(velu),  [velumanit@hcl](mailto:velumanit@hcl.com)
 
 other contributors:
 
 created:
-    Dec 8, 2021
+    Jan 31, 2022
 
 ## Problem Description
 
@@ -29,7 +29,9 @@ Existing FRU device implementation of device byte type identification:
 The current entity-manager FRU device application identifies single byte or
 two byte EEPROM type using byte read and write logic.
 
-https://github.com/openbmc/entity-manager/blob/master/src/FruDevice.cpp#L197
+https://github.com/openbmc/entity-manager/commit/
+2d681f6fdec02b2f56d9155117c4830703026cb0#diff-
+c0c1c17cf32614c7fb0d6241a3aad7977352e148b481d91936a8bd43b42837ecR66
 
 Our yosemitev2 machine supports two types of NIC card, Broadcom NIC has
 FRU details in single byte EEPROM and Mellanox NIC has FRU details
@@ -42,34 +44,32 @@ http://files.opencompute.org/oc/public.php?service=files&t=3c8f57684f959c5b7abe2
 ## Requirements
 
 * Need to identify single byte or two byte EEPROM (Broadcom or Mellanox).
-* To get the EEPROM type single byte or two byte at platform level.
-* Entity-manager should read this EEPROM type from machine layer.
+* To get the EEPROM type single byte or two byte from generic way.
+* Entity-manager should read this EEPROM type from dbus.
 * This byte type identification logic in entity-manager should be generic
   for all the platforms.
 
 ## Proposed Design
 
 This document proposes a new design engaging the FRU device to find the EEPROM
-device byte type, as single byte or two byte from the machine layer and read
-this device byte type via D-bus.
+device byte type, as single byte or two byte from the ncsid(phosphor-networkd)
+and read this device byte type via D-bus.
 
 The implementation flow of EEPROM byte type identification:
 
-1) The flag has been created to enable the EEPROM device byte identification
-   service in entity-manager config file.
+1) Created a new interface and property for eeprom byte type identification in
+   phosphor-dbus-interface.
 
-2) If the flag is set in entity-manager configuration, the particular machine
-   specific service will be be executed. If not set the existing
-   logic will be executed.
+2) In phosphor-networkd, creating a new D-bus for identifying the eeprom byte
+   type.
 
-3) The platform specific service shall execute the script which parses the NIC
+3) Using command of ncsi-netlink --info -x 2 -p 0 -c 0 which parses the NIC
    manufacturer information like Broadcom or Mellanox from NIC information
    and get the EEPROM device byte type can be identified as single byte
-   (Broadcom) or two byte(Mellanox).
+   (Broadcom) or two byte(Mellanox). and update the output in D-bus.
 
-4) This service will return the output (single byte or two byte) to the service
-   initiated from FruDevice and get the byte type using sdbusplus call and
-   updated those byte type information in FruDevice D-bus.
+4) Based on D-bus, the output will be updated in json's probe field of eeprom
+   in entity-manager.
 
 5) Finally the FRU device will read and use the byte type(single byte
    or two byte)from the D-bus.
@@ -78,23 +78,40 @@ This byte type identification logic in entity-manager should be generic
 for all the platforms.
 
 Following modules will be updated for this implementation
+* phosphor-dbus-interface
+* phosphor-networkd
 * Entity-manager
-* Machine layer
 
 ## Alternatives Considered
 
-An approach has been tried with identifying the EEPROM byte type from the
-platform specific service and added probe field with compatible string
-in entity-manager platform specific config file. But, In entity-manager
-dbus properties doesn't have write permission. So EEPROM byte type cannot
-be updated in dbus property.
+1) An approach has been tried with identifying the EEPROM byte type from the
+   platform specific service and added probe field with compatible string
+   in entity-manager platform specific config file. But, In entity-manager
+   dbus properties doesn't have write permission. So EEPROM byte type cannot
+   be updated in dbus property.
+
+2) The flag has been created to enable the EEPROM device byte identification
+   service in entity-manager config file. If the flag is set in entity-manager
+   configuration, the particular machine specific service will be be executed.
+   If not set the existing logic will be executed.
+
+   The platform specific service shall execute the script which parses the NIC
+   manufacturer information like Broadcom or Mellanox from NIC information
+   and get the EEPROM device byte type can be identified as single byte
+   (Broadcom) or two byte(Mellanox).
+
+   This service will return the output (single byte or two byte) to the service
+   initiated from FruDevice and get the byte type using sdbusplus call and
+   updated those byte type information in FruDevice D-bus. Finally the FRU
+   device will read and use the byte type(single byte or two byte)from the
+   D-bus.
 
 This new generic function creation approach in entity-manager can be more
 suitable to handle EEPROM device byte type identification.
 
 ## Impacts
 
-This is for machine specific so less impact.
+This is generic way to detect the model ID so less impact.
 
 ## Testing
 
