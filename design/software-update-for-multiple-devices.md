@@ -212,55 +212,38 @@ activated performing in this case parallel update.
 - After successful activation the image may be deleted if the requirements
 match (see Image Cleaning section).
 
-### Software Update Completion Status and Progress
-Software update process can be tracked using CompletedStatus and Progress
-D-bus properties.
-
-The interface "xyz.openbmc_project.Software.CompletionStatus" will be created
-under "xyz.openbmc_project.oem_firmware_update" service to have CompletedStatus
-and Progress D-bus properties.
-
-CompletedStatus : This dbus property is used to get the software update
-completion status. This is boolean Dbus-property which is disabled by
-default and enabled only if the software update process is completed.
+### Software Update Progress
+Software update process can be monitored using Progress D-bus property under
+ActivationProgress interface in xyz.openbmc_project.Software.Version
+dbus-service.
 
 Progress : This dbus property is used to get the software update progress
-or completion percentage. This is unsigned integer Dbus-property which
+or completion percentage. This is integer type Dbus-property which
 have completed percentage.
 
-Custom flash tool needs to updated to monitor the progress of Completion
-continuously. This progress of Completion is calculated based on the total
-and completed image size. This Value is updated in the service
-"xyz.openbmc_project.oem_firmware_update" with new property.
-ItemUpdater can read this progress of completion from this Dbus-interface.
+Software update progress can be calculated using systemd service states like
+active, running, done, etc,. The custom flash tool can be invoked by systemd
+service and based on these service states the completion percentage will be
+updated in the progress dbus property.
 
-So, custom tool keep on updating the progress in this dbus properties.
-
-ItemUpdater will read this CompletedStatus and Progress D-bus properties from
-"xyz.openbmc_project.oem_firmware_update" service.
+This ActivationProgress interface is enabled only when the activation of the
+image starts. This ActivationProgress is disabled only when the activation of
+the image is done.
 
 ```
- xyz.openbmc_project.Software.CompletionStatus interface -  -     -
+ xyz.openbmc_project.Software.ActivationProgress interface -  -     -
  .Progress                           property  d  50    emits-change writable
- .CompletedStatus                    property  b  false emits-change writable
- .Status                             property  s  Aborted emits-change writable
+
 ```
 
-Status : This string type dbus property is used to get the abort or Inprogress
-status. Custom flash tool can be updated with setting timeout option for every
-chunk of data sent via Ipmb command. If update is not happening till that
-timeout period then we set the status as Aborted.
+If any errors or update fails in the middle of the custom flash tool, that
+systemd service which invokes the flash tool status can be updated with failed
+or inactive. Based on these systemd service states, ItemUpdater can get the
+error status.
 
-If the service is not exist for some timeout, it might go to abort status.
-if status is aborted, dbus-proeprties can be updated with Abort status.
-Itemupdater can remove the images if status is aborted.
-
-If any errors or update fails in the middle, that status can be updated in the
-dbus-properties and based on this ItemUpdater can get the error status from
-dbus-properties.
-
-The Inprogress status can avoid the two image updates on same device.
-ItemUpdater can activate the images only if that is not in the Inprogress state.
+Based on the completed progress percentage, two image updates on same device can
+be avoided. ItemUpdater can activate the images only if that completed progress
+is 0 or 100.
 
 ### Image Cleaning for multi-host machines
 In the existing system, the image will be deleted after the successful
@@ -302,8 +285,8 @@ This image delete logic is used for unused or un-applied images.
 For multi-host machines it may be necessary to have a mechanism of listening to
 image cleaning because when it is performed by the user it is also necessary to
 clean flags in the ItemUpdater. The Host ItemUpdater code is doing the
-watch/listening if user removes the image manually, we need to remove the
-object path and clean the flags.
+watch/listening if user removes the image manually with D-bus delete call,
+then we need to remove the object path and clean the flags.
 
 ### Impacts
 - Current software manager creates an
