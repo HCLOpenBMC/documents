@@ -288,6 +288,31 @@ clean flags in the ItemUpdater. The Host ItemUpdater code is doing the
 watch/listening if user removes the image manually with D-bus delete call,
 then we need to remove the object path and clean the flags.
 
+#### Using Redfish
+Redfish DMTF standard (DSP2062_1.0.0) supports for firmware update of devices
+like BMC, BIOS, CPLD, etc. User can specify the host which needs to be updated
+using Redfish. The device list can be generated using Inventory.
+
+Following commands could possibly be considered for the redfish support.
+
+To configure the host for bios update,
+For Host1:
+```
+curl -g -k -H "X-Auth-Token: $token"
+https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system1/BIOS.
+Updateable -d '{"Value": "true"}'
+```
+For Host3:
+```
+curl -g -k -H "X-Auth-Token: $token"
+https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system3/BIOS.
+Updateable -d '{"Value": "true"}'
+```
+To update the bios image,
+```
+curl -u root:0penBmc -curl -k -s  -H "Content-Type: application/octet-stream"
+-X POST -T <image file path> https://${BMC}/redfish/v1/UpdateService
+
 ### Impacts
 - Current software manager creates an
 object */xyz/openbmc_project/software/bios_active* which can be removed.
