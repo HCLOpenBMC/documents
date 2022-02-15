@@ -11,32 +11,52 @@ created:
 
 ## Problem Description
 
-The current implementation in openBMC supports BMC to host communication for
-single and muli hosts. For BMC to host communication some OCP specific
-platforms using Bridge-IC. This Bridge-IC acts as a bridge between BMC to host.
-All the ipmb commands and OEM commands are passing through this Bridge-IC.
+The Bridge IC is specific to OCP multi host platforms where in this BIC act as
+a bridge between host and BMC. All the communication between host and BMC is
+through BIC. The interface between the BMC and BIC is IPMB. There are standard
+and oem specific ipmb commands supported in BIC, many oem commands are specific
+to some oem feature. These commands may not fit in to any other repository in
+openbmc. for example OEM BIOS upgrade through IPMB, OEM CPLD upgrade etc. So to
+handle this we may need a specific service to handle the BIC related features.
 
-The current implementation in openBMC does not support OCP platform specific
-oem command handling. openBMC does not support oem command for firmware update
-of CPLD, VR, BIOS, BIC etc.
-
-This design documents focuses on handling oem commands for firmware update of
-CPLD, VR, BIOS, BIC, etc for OCP specific platforms. It involves new daemon and
-repository creation for this implementation. This new repository name would be
-BICcode.
+This design document focusing on oem commands for OCP multi host platforms, it
+supports features such as firmware upgrade of CPLD, VR, BIOS and BIC. The first
+platform which is going to supported is Yosemite V2. The proposed repository
+name is ocp-bridge-ic.
 
 ## Background and References
 
-The BMC to Host communication is happening via ipmbbridge and ipmid
-daemons. These daemnos handling all the ipmb commands request and response for
-BMC to host communication. These ipmb and OCP specific oem commands are sending
-and receiving via Bridge-IC.
+The BMC to Host communication is happening via ipmbbridge and ipmid daemons.
+These daemnos handling all the ipmb commands request and response for BMC to
+host communication. These ipmb and OCP specific oem commands are sending and
+receiving via Bridge-IC.
 
-This Bridge-IC transfers all the ipmb commands from host to ipmmbridge daemon.
-Some of the ipmb commands are get device id, get fru and sdr details, etc.
-It forwards the request and response for multihost ipmb commands also.
-This forwards OEM command request and response for firmware update of multiple
-devices like CPLD, VR, BIC, BIOS etc for multi host platforms.
+                                                  HOST1
++-----------------------------------+     +----------------------+
+|                BMC                |     |        BIC           |
+|                                   |     |  +----------------+  |
+|  +------------+    +----------+   |     |  |   OEM COMMANDS |  |
+|  |            |Dbus|          |   |IPMB |  |                |  |
+|  |            <---->          <---+-----+-->Ex:CPLD,BIC,VR, |  |
+|  |  OEM_BICD  |    |          |   |     |  | BIOS FW Update |  |
+|  |            |    |          |   |     |  +----------------+  |
+|  |            |    |          |   |     |                      |
+|  +------------+    |IPMB      |   |     +----------------------+
+|                    | BRIDGED  |   |             H0ST2
+|  +------------+    |          |   |     +----------------------+
+|  |            |    |          |   |     |        BIC           |
+|  |            |    |          |   |     |  +----------------+  |
+|  |   IPMID    |Dbus|          |   |IPMB |  | IPMB COMMANDS  |  |
+|  |            <---->          <---+-----+-->                |  |
+|  |            |    |          |   |     |  |Ex: getDeviceId |  |
+|  +------------+    +----------+   |     |  |                |  |
+|                                   |     |  +----------------+  |
+|                                   |     |                      |
++-----------------------------------+     +----------------------+
+                                                 
+The ipmbbriged is going to be the same all the ipmb commands to BIC is routed
+through this daemon. The ocp-bridge-ic will have a implementation for the
+complete features like firmware upgrade.
 
 This Bridge-IC has some intelligence. It has the specification. Based on the
 spec, It will receives the request and adding some BIC headers like BIC netfn,
@@ -48,12 +68,9 @@ forward the response to the requester.
 
 ## Requirements
 
-* BIC code should handles all the oem commands requests like firmware update of
-  CPLD, VR, Bios etc.
-* BIC code should process all the oem commands.
-* BIC code should send the response back to the oem command requester.
-* New repository should be created for handling these BIC codes.
-* Support added for single and multi-host oem firmware update.
+* Implementing firmware upgrade using oem commands.
+* exposing dbus interface to communicate with other modules (need to decide)
+* updating progress and completion status in dbus interface
 
 ## Proposed Design
 
@@ -63,7 +80,7 @@ details.
 
 The implementation flow of OEM firmware update:
 
-1) Seperate daemon will be created for this OEM formware update.
+1) Seperate daemon will be created for this OEM firmware update.
 2) Binary file and slotId details can be an input from the user.
 3) Image can be generated from binary file and it has been validated.
 4) If image is not valid, then will stop this flashing and firmware update.
