@@ -7,7 +7,7 @@ Author:
 other contributors:
 
 created:
-    Feb 7, 2022
+    Feb 16, 2022
 
 ## Problem Description
 
@@ -31,6 +31,7 @@ These daemnos handling all the ipmb commands request and response for BMC to
 host communication. These ipmb and OCP specific oem commands are sending and
 receiving via Bridge-IC.
 
+```
                                                   HOST1
 +-----------------------------------+     +----------------------+
 |                BMC                |     |        BIC           |
@@ -53,7 +54,9 @@ receiving via Bridge-IC.
 |                                   |     |  +----------------+  |
 |                                   |     |                      |
 +-----------------------------------+     +----------------------+
-                                                 
+   
+```
+                                              
 The ipmbbriged is going to be the same all the ipmb commands to BIC is routed
 through this daemon. The ocp-bridge-ic will have a implementation for the
 complete features like firmware upgrade.
@@ -81,18 +84,15 @@ details.
 The implementation flow of OEM firmware update:
 
 1) Seperate daemon will be created for this OEM firmware update.
-2) Binary file and slotId details can be an input from the user.
-3) Image can be generated from binary file and it has been validated.
-4) If image is not valid, then will stop this flashing and firmware update.
-5) If image is valid, then get the device details from the user. The device
+2) Image can be read from the path and it has been validated.
+3) If image is valid, then get the device details from the user. The device
 which needs to updated. Ex CPLD, VR, BIOS, etc.
-6) Target can be set for firmware update. Target will be CPLD, VR, BIOS, etc
-7) ME recovery mode has been set
-8) The OEM command will be framed as Ipmb command with netfn and cmd and sent
+4) Target can be set for firmware update. Target will be CPLD, VR, BIOS, etc
+5) The OEM command will be framed as Ipmb command with netfn and cmd and sent
 via Bridge-IC and send to the device which needs to be do the firmware update
-9) If any error response, then write flashing and update is considered as
+6) If any error response, then write flashing and update is considered as
 failed.
-10) If no errors, then flashing and firmware update is success.
+7) If no errors, then flashing and firmware update is success.
 
 ## BIOS Update Procedure
 
@@ -117,6 +117,25 @@ failed.
     the data checksum and send the checksum back to BMC.
 11) BMC will check the correctness of the checksum. Repeat the process till the
     whole image was verified.
+
+```
+        +---------+     SPI      +-----------+
+        |BIOS ROM <--------------+ BRIDGE-IC |
+        |         |              |           |
+        +---------+              +-----^-----+
+                                       |
+                                       |
+                                       | I2C(IPMB)
+                                       |
+                                       |
+                                 +-----+-----+
+                                 |           |
+                                 |    BMC    |
+                                 +-----------+
+```
+
+## CPLD  Update procedure - TBD
+
 
 ## Alternatives Considered
 
