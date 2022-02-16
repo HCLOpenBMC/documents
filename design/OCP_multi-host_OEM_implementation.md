@@ -7,7 +7,7 @@ Author:
 other contributors:
 
 created:
-    Feb 7, 2022
+    Feb 16, 2022
 
 ## Problem Description
 
@@ -117,6 +117,23 @@ failed.
     the data checksum and send the checksum back to BMC.
 11) BMC will check the correctness of the checksum. Repeat the process till the
     whole image was verified.
+
+        +---------+     SPI      +-----------+
+        |BIOS ROM <--------------+ BRIDGE-IC |
+        |         |              |           |
+        +---------+              +-----^-----+
+                                       |
+                                       |
+                                       | I2C(IPMB)
+                                       |
+                                       |
+                                 +-----+-----+
+                                 |           |
+                                 |    BMC    |
+                                 +-----------+
+
+## CPLD  Update procedure - TBD
+
 
 ## Alternatives Considered
 
