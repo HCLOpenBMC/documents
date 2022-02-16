@@ -38,15 +38,15 @@ receiving via Bridge-IC.
 |  +------------+    +----------+   |     |  |   OEM COMMANDS |  |
 |  |            |Dbus|          |   |IPMB |  |                |  |
 |  |            <---->          <---+-----+-->Ex:CPLD,BIC,VR, |  |
-|  |  OEM_BICD  |    |          |   |     |  | BIOS FW Update |  |
+|  |  ocp_bicd  |    |          |   |     |  | BIOS FW Update |  |
 |  |            |    |          |   |     |  +----------------+  |
 |  |            |    |          |   |     |                      |
-|  +------------+    |IPMB      |   |     +----------------------+
-|                    | BRIDGED  |   |             H0ST2
+|  +------------+    |ipmb      |   |     +----------------------+
+|                    |   bridged|   |             H0ST2
 |  +------------+    |          |   |     +----------------------+
 |  |            |    |          |   |     |        BIC           |
 |  |            |    |          |   |     |  +----------------+  |
-|  |   IPMID    |Dbus|          |   |IPMB |  | IPMB COMMANDS  |  |
+|  |   ipmid    |Dbus|          |   |IPMB |  | IPMB COMMANDS  |  |
 |  |            <---->          <---+-----+-->                |  |
 |  |            |    |          |   |     |  |Ex: getDeviceId |  |
 |  +------------+    +----------+   |     |  |                |  |
@@ -93,6 +93,30 @@ via Bridge-IC and send to the device which needs to be do the firmware update
 9) If any error response, then write flashing and update is considered as
 failed.
 10) If no errors, then flashing and firmware update is success.
+
+## BIOS Update Procedure
+
+1) User can use custom oem flashing tool "ocp-bicd" daemon in the BMC to do the
+   BIOS Firmware update.
+2) BIOS image path is passing as one of the paramter to the "ocp-bicd" daemon.
+3) ocp-bicd daemon read the image file and calculate the file size.
+4) This daemon sends "Firmware Update"(09h) command to Bridge IC for BIOS update
+   request. It sends as IPMB command to Bridge IC.
+5) Bridge-IC will check IPMB packet checksum and ensure data correctness.
+6) If checksum is correct, Bridge IC starts to write BIOS firmware via SPI.
+7) BMC then send 224 bytes per packet to do BIOS update and wait for Bridge IC
+   response or IPMB timeout.
+8) If timeout happens, BMC will re-send the IPMB package. The maximum retry is
+   3 times. If retry time reaches 3, the update procedure will stop. In this
+   case, user needs to issue update command again to re-initiate update
+   procedure.
+9) After full BIOS Firmware image update is complete, BMC sends
+   “Firmware Verify”(0Ah) command that contents verify offset and data length
+   to Bridge IC.
+10) Bridge IC will then read corresponding image data from BIOS ROM, calculate
+    the data checksum and send the checksum back to BMC.
+11) BMC will check the correctness of the checksum. Repeat the process till the
+    whole image was verified.
 
 ## Alternatives Considered
 
