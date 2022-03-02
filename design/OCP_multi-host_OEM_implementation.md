@@ -15,9 +15,11 @@ The Bridge IC is specific to OCP multi host platforms where in this BIC act as
 a bridge between host and BMC. All the communication between host and BMC is
 through BIC. The interface between the BMC and BIC is IPMB. There are standard
 and oem specific ipmb commands supported in BIC, many oem commands are specific
-to some oem feature. These commands may not fit in to any other repository in
-openbmc. for example OEM BIOS upgrade through IPMB, OEM CPLD upgrade etc. So to
-handle this we may need a specific service to handle the BIC related features.
+to some oem feature. These oem commands may fit into fb-ipmi-oem since it has 
+standard oem commands also. But the oem commands handlers should initiated from
+new daemon with new repository in openbmc. for example OEM BIOS upgrade through
+IPMB, OEM CPLD upgrade etc. So to handle this we may need a specific service to
+handle the BIC related features.
 
 This design document focusing on oem commands for OCP multi host platforms, it
 supports features such as firmware upgrade of CPLD, VR, BIOS and BIC. The first
@@ -61,6 +63,12 @@ The ipmbbriged is going to be the same all the ipmb commands to BIC is routed
 through this daemon. The ocp-bridge-ic will have a implementation for the
 complete features like firmware upgrade.
 
+Firmware update OEM commands are differ from standard oem commands as standard
+oem commands are initiated from host and send to BMC and handling in
+b-ipmi-oem which has handler function for each standard oem command. Firmware
+update OEM commands are initiated from ocp-bicd and send to host/devices for
+firmware update and response will be sent back to ocp-bicd.
+
 This Bridge-IC has some intelligence. It has the specification. Based on the
 spec, It will receives the request and adding some BIC headers like BIC netfn,
 BIC cmd and IANA etc as prefix with that oem commands and send those commands
@@ -69,6 +77,8 @@ function got invoked and parsed the BIC headers and data part and processed
 the commands send back the response to BIC. BIC remove the BIC headers and
 forward the response to the requester.
 
+Below is the link for OCP TwinLake Design Spec.
+https://www.opencompute.org/documents/facebook-twin-lakes-1s-server-spec
 ## Requirements
 
 * Implementing firmware upgrade using oem commands.
@@ -83,16 +93,21 @@ details.
 
 The implementation flow of OEM firmware update:
 
-1) Seperate daemon will be created for this OEM firmware update.
+1) Seperate daemon will be created in a new repository for this OEM firmware
+update.
 2) Image can be read from the path and it has been validated.
 3) If image is valid, then get the device details from the user. The device
 which needs to updated. Ex CPLD, VR, BIOS, etc.
 4) Target can be set for firmware update. Target will be CPLD, VR, BIOS, etc
-5) The OEM command will be framed as Ipmb command with netfn and cmd and sent
-via Bridge-IC and send to the device which needs to be do the firmware update
-6) If any error response, then write flashing and update is considered as
+5) The OEM command will be framed as Ipmb command with netfn and cmd
+6) The OEM commands are initiated from ocp-bicd deamon and it will directly
+sent to ipmid. ipmid will transfer the oem commands to fb-ipmi-oem which has
+these oem commands handler functions.
+7) Based on the oem commands, the corresponding oem command handlers are
+called and response will send back to ocp-bicd via ipmid and ipmbbridged.
+8) If any error response, then write flashing and update is considered as
 failed.
-7) If no errors, then flashing and firmware update is success.
+9) If no errors, then flashing and firmware update is success.
 
 ## BIOS Update Procedure
 
@@ -145,7 +160,7 @@ failed.
    firmware update. OEM commands for firmware update cannot initiated from
    fb-ipmi-oem. Because fb-ipmi-oem code handles only incoming oem commands
    request using handler functions and send the response back to the requester
-   command.
+   command. So, we can keep only oem command handler functions.
 
 2) openbmc-tools - An another approach has been tried with openbmc-tools
    repository. This openbmc-tools repository is mainly used for having debug
