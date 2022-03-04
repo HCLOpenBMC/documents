@@ -7,7 +7,7 @@ Other contributors: Carlos J. Mazieri [carlos.mazieri@hcl.com],
 
 Created: Nov 18 2020
 
-Updated: Dec 22 2021
+Updated: Jan 31 2021
 
 ## Terms Used In This Document
 | TERM | MEANING |
@@ -25,7 +25,7 @@ deleted after the successful activation in this single device/host.
 
 The new implementation should provide the support for anytime activation
 of a software/firmware update which could be applicable for multiple
- devices/hosts.
+devices/hosts.
 
 ## Requirements
 The new software/firmware update implementation considers the
@@ -45,30 +45,40 @@ This document proposes a new design engaging a phosphor-bmc-code-mgmt to update
 software/firmware for multiple devices/hosts in the system. Provided below the
 implementation steps.
 
-### BMC Inventory Management
-The ItemUpdater will collect the devices/hosts list that can be updated
-with the new software/firmware based on the software/firmware release. The
-software/firmware "Image Type" include but not limited to:
+### Software update details from the BMC inventory
+The ItemUpdater collects the software update details like devices/hosts list
+from BMC inventory of entity-manager with Inventory.Decorator.Compatible
+interface and "IMAGETYPE=" property that can be updated with the new software/
+firmware based on the software/firmware release. The software/firmware
+"Image Type" include but not limited to:
+
 - BIOS
 - CPLD
 - VR
 - BIC firmware
 - ME firmware
 
-The software manager will collect also the list of "Image Type" each
-device/host can be assigned to.
+The ItemUpdater also collects the list of "Image Type" each device/host can be
+assigned to. This "Image Type" list collects from Inventory Decorator.
+Compatible interface and IMAGETYPE=" property from entity-manager for each
+device.
+
+Similarly, the host details for software update also getting from inventory.
+It supports all the "Image Type" as like BMC update.
 
 ### Proposal: A new *ItemUpdater* with "ImageType" and "HostId" identification
 
-Another *ItemUpdater* instance specific for device/hosts software update will
-be in place in the software manager. The implementation steps are mentioned
-below. All the software/firmware (BIOS, CPLD, VR, ME, etc) can be updated
-through their respective interfaces easily through this method.
+Another new single *ItemUpdater* instance specific for device/hosts software
+update will be in place in the software manager. The implementation steps are
+mentioned below. All the software/firmware (BIOS, CPLD, VR, ME, etc) can be
+updated through their respective interfaces easily through this method. This
+new instance is generic for all image types.
 
 #### New objects creation based on inventory
-- New objects will be created under *xyz.openbmc_project.Software.Host.Updater*
-  for all the devices/hosts identified from inventory. Each object will have
-the *Activation* interface to perform the software update.
+- New objects will be created under the new dbus service
+*xyz.openbmc_project.Software.Host.Updater* for all the devices/hosts
+identified from inventory. Each object will have the *Activation* interface to
+perform the software update.
 
 ## Proposed Design High Level Specification
 
@@ -90,10 +100,17 @@ just identifies the image type. This ImageType follows the compatible
 string format. The example format has been added in MANIFEST file.
 (see the section MANIFEST File Changes Proposal).
 - The file name, the type of the image can be detected by the "MANIFEST"
-file with has compatibility string format or any other "file name" that is
-present in the image directory. In both cases when the name contains an
-isolated sub-string such as "BIOS","CPLD", "VR", "BIC" or "ME"
-(both upper and lower cases) just identifies the image type.
+file which has compatibility string format. The file name contains an isolated
+sub-string such as "BIOS","CPLD", "VR", "BIC" or "ME" (both upper and lower
+cases) just identifies the image type.
+
+Isolated sub-string is BIOS, CPLD , BIC etc after the filename with '.' The
+format of the image.
+
+The Compatible string has to be parsed and compared the each element separated
+by '.'. Element is TwinLake and Type is BMC or host. Type and revision needs to
+be compared with exact match.
+
 Examples: "bios.bin" identifies "BIOS" image because the word "bios" is
 isolated (followed by a *dot*), but  "biosxx.bin" does not identify any image
 type. Besides *dots*, *underscores* and *minus signs* are also considered
@@ -139,7 +156,7 @@ for the examples below consider that the inventory contains only images type of
 
 ### Service Files
 The current software version that supports flashing "BIOS" firmware and
-defines the Service File as "obmc-flash-host-bios@.service" which receives
+defines the Service File as "obmc-flash-bios@.service" which receives
 the "image id" as parameter.
 Having a generic devices/hosts list and supported image types coming from the
 inventory requires a unique Service File for all image types such as
@@ -167,6 +184,23 @@ ImageID "1a56bff3", the ImageType "BIOS" and the HostID "1":
 
     ExecStart=[flash tool here]  %i
 ```
+Different BIOS update is possible with compatible string using type with Rev.
+
+Example : If wanted to update Bios with two versions 1 and 2 like Bios_1,
+Bios_2. So, we can use this compatible string and check the type as Host.Bios
+and revisions as 1 and 2. We compare with exact string match with type and Rev.
+
+ImageType=com.facebook.Software.Element.TwinLake.Type.Host.Bios.1
+ImageType=com.facebook.Software.Element.TwinLake.Type.Host.Bios.2
+
+With Different Revisions, we can handle different BIOS methods. Revision number
+and Type should vary between the different BIOS update methods.
+
+Images can be differentiated and identified by compatible string format.
+
+All Bios update methods are handling using Ipmb commands in Bridge IC.
+So,BIC accepts only valid format of data for firmware update commands for
+different cards. The command data is different for each card.
 
 ### Software Update Procedure
 Software update will be performed by the following process:
@@ -178,30 +212,38 @@ activated performing in this case parallel update.
 - After successful activation the image may be deleted if the requirements
 match (see Image Cleaning section).
 
-### Software Update Completion Status and Progress
-Software update process can be tracked using CompletedStatus and Progress
-D-bus properties.
-
-The interface "xyz.openbmc_project.Software.CompletionStatus" will be created
-under "xyz.openbmc_project.oem_firmware_update" service to have CompletedStatus
-and Progress D-bus properties.
-
-CompletedStatus : This dbus property is used to get the software update
-completion status. This is boolean Dbus-property which is disabled by
-default and enabled only if the software update process is completed.
+### Software Update Progress
+Software update process can be monitored using Progress D-bus property under
+ActivationProgress interface in xyz.openbmc_project.Software.Version
+dbus-service.
 
 Progress : This dbus property is used to get the software update progress
-or completion percentage. This is unsigned integer Dbus-property which
-have completed percentage and it's calculated based on image size.
+or completion percentage. This is integer type Dbus-property which
+have completed percentage.
 
-ItemUpdater will read this CompletedStatus and Progress D-bus properties from
-"xyz.openbmc_project.oem_firmware_update" service.
+Software update progress can be calculated using systemd service states like
+active, running, done, etc,. The custom flash tool can be invoked by systemd
+service and based on these service states the completion percentage will be
+updated in the progress dbus property.
+
+This ActivationProgress interface is enabled only when the activation of the
+image starts. This ActivationProgress is disabled only when the activation of
+the image is done.
 
 ```
- xyz.openbmc_project.Software.CompletionStatus interface -  -     -
+ xyz.openbmc_project.Software.ActivationProgress interface -  -     -
  .Progress                           property  d  50    emits-change writable
- .CompletedStatus                    property  b  false emits-change writable
+
 ```
+
+If any errors or update fails in the middle of the custom flash tool, that
+systemd service which invokes the flash tool status can be updated with failed
+or inactive. Based on these systemd service states, ItemUpdater can get the
+error status.
+
+Based on the completed progress percentage, two image updates on same device can
+be avoided. ItemUpdater can activate the images only if that completed progress
+is 0 or 100.
 
 ### Image Cleaning for multi-host machines
 In the existing system, the image will be deleted after the successful
@@ -231,6 +273,8 @@ The image delete logic in both cases deleted by the system or deleted by the
 user will result on the software objects path removal and software state
 cleaning.
 
+This image delete logic is used for unused or un-applied images.
+
 ```
   xyz.openbmc_project.Object.Delete  interface -  -    -
   .Delete                            method    -  -    -
@@ -240,7 +284,34 @@ cleaning.
 #### Listen to image removal event
 For multi-host machines it may be necessary to have a mechanism of listening to
 image cleaning because when it is performed by the user it is also necessary to
-clean flags in the software manager.
+clean flags in the ItemUpdater. The Host ItemUpdater code is doing the
+watch/listening if user removes the image manually with D-bus delete call,
+then we need to remove the object path and clean the flags.
+
+#### Using Redfish
+Redfish DMTF standard (DSP2062_1.0.0) supports for firmware update of devices
+like BMC, BIOS, CPLD, etc. User can specify the host which needs to be updated
+using Redfish. The device list can be generated using Inventory.
+
+Following commands could possibly be considered for the redfish support.
+
+To configure the host for bios update,
+For Host1:
+```
+curl -g -k -H "X-Auth-Token: $token"
+https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system1/BIOS.
+Updateable -d '{"Value": "true"}'
+```
+For Host3:
+```
+curl -g -k -H "X-Auth-Token: $token"
+https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system3/BIOS.
+Updateable -d '{"Value": "true"}'
+```
+To update the bios image,
+```
+curl -u root:0penBmc -curl -k -s  -H "Content-Type: application/octet-stream"
+-X POST -T <image file path> https://${BMC}/redfish/v1/UpdateService
 
 ### Impacts
 - Current software manager creates an
