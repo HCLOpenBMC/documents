@@ -7,7 +7,7 @@ Author:
 other contributors:
 
 created:
-    Feb 16, 2022
+    Mar 9, 2022
 
 ## Problem Description
 
@@ -15,11 +15,10 @@ The Bridge IC is specific to OCP multi host platforms where in this BIC act as
 a bridge between host and BMC. All the communication between host and BMC is
 through BIC. The interface between the BMC and BIC is IPMB. There are standard
 and oem specific ipmb commands supported in BIC, many oem commands are specific
-to some oem feature. These oem commands may fit into fb-ipmi-oem since it has 
-standard oem commands also. But the oem commands handlers should initiated from
-new daemon with new repository in openbmc. for example OEM BIOS upgrade through
-IPMB, OEM CPLD upgrade etc. So to handle this we may need a specific service to
-handle the BIC related features.
+to some oem feature. These oem commands should initiated from new daemon with
+new repository in openbmc. for example OEM BIOS upgrade through IPMB, OEM CPLD
+upgrade etc. So to handle this we may need a specific service to handle the BIC
+related features.
 
 This design document focusing on oem commands for OCP multi host platforms, it
 supports features such as firmware upgrade of CPLD, VR, BIOS and BIC. The first
@@ -34,25 +33,25 @@ host communication. These ipmb and OCP specific oem commands are sending and
 receiving via Bridge-IC.
 
 ```
-                                                       HOST1
+                                                        HOST1
      +-----------------------------------+     +----------------------+
      |                BMC                |     |        BIC           |
      |                                   |     |  +----------------+  |
      |  +------------+    +----------+   |     |  |   OEM COMMANDS |  |
      |  |            |    |          |   |IPMB |  |                |  |
      |  |            |    |          <---+-----+-->Ex:CPLD,BIC,VR, |  |
-     |  |  ocp_bicd  |    |          |   |     |  | BIOS FW Update |  |
-     |  |            |    |          |   |     |  +----------------+  |
-     |  |            |    |          |   |     |                      |
-     |  +-----^------+    |ipmb      |   |     +----------------------+
-     |        | Dbus      |   bridged|   |             H0ST2
-     |  +-----v+-----+    |          |   |     +----------------------+
-     |  |      |     |    |          |   |     |        BIC           |
-     |  | fb-  |     |    |          |   |     |  +----------------+  |
-     |  | ipmi-|ipmid|Dbus|          |   |IPMB |  | IPMB COMMANDS  |  |
-     |  |  oem |     <---->          <---+-----+-->                |  |
-     |  |      |     |    |          |   |     |  |Ex: getDeviceId |  |
-     |  +------+-----+    +----------+   |     |  |                |  |
+     |  |            │    │          |   |     |  | BIOS FW Update |  |
+     |  |            │    │          |   |     |  +----------------+  |
+     |  |            │    |          |   |     |                      |
+     |  │ ocp_bicd   │    |ipmb      |   |     +----------------------+
+     |  │            |Dbus|   bridged|   |             H0ST2
+     |  │            <---->          |   |     +----------------------+
+     |  │            │    |          |   |     |        BIC           |
+     |  │            │    │          |   |     |  +----------------+  |
+     |  │            │    │          |   |IPMB |  | IPMB COMMANDS  |  |
+     |  │            │    │          <---+-----+-->                |  |
+     |  │            │    │          |   |     |  |Ex: getDeviceId |  |
+     |  └────────────┘    +----------+   |     |  |                |  |
      |                                   |     |  +----------------+  |
      |                                   |     |                      |
      +-----------------------------------+     +----------------------+
@@ -69,16 +68,9 @@ b-ipmi-oem which has handler function for each standard oem command. Firmware
 update OEM commands are initiated from ocp-bicd and send to host/devices for
 firmware update and response will be sent back to ocp-bicd.
 
-This Bridge-IC has some intelligence. It has the specification. Based on the
-spec, It will receives the request and adding some BIC headers like BIC netfn,
-BIC cmd and IANA etc as prefix with that oem commands and send those commands
-to particular handlers functions. Based on the netfn and cmd that handler
-function got invoked and parsed the BIC headers and data part and processed
-the commands send back the response to BIC. BIC remove the BIC headers and
-forward the response to the requester.
-
 Below is the link for OCP TwinLake Design Spec.
 https://www.opencompute.org/documents/facebook-twin-lakes-1s-server-spec
+
 ## Requirements
 
 * Implementing firmware upgrade using oem commands.
@@ -101,13 +93,16 @@ which needs to updated. Ex CPLD, VR, BIOS, etc.
 4) Target can be set for firmware update. Target will be CPLD, VR, BIOS, etc
 5) The OEM command will be framed as Ipmb command with netfn and cmd
 6) The OEM commands are initiated from ocp-bicd deamon and it will directly
-sent to ipmid. ipmid will transfer the oem commands to fb-ipmi-oem which has
-these oem commands handler functions.
-7) Based on the oem commands, the corresponding oem command handlers are
-called and response will send back to ocp-bicd via ipmid and ipmbbridged.
-8) If any error response, then write flashing and update is considered as
+sent to ipmbbridged using sendRequest dbus method call.
+Ex: busctl call xyz.openbmc_project.Ipmi.Channel.Ipmb
+/xyz/openbmc_project/Ipmi/Channel/Ipmb org.openbmc.Ipmb sendRequest yyyyay
+0 6 0 0x1 0
+7) Then ipmbbridged forwards that oem commands to BIC.
+8) BIC process those oem commads and sends the response to the ipmbbridged.
+9) Ipmbbridged forrwards the response the ocp-bicd daemon.
+10) If any error response, then write flashing and update is considered as
 failed.
-9) If no errors, then flashing and firmware update is success.
+11) If no errors, then flashing and firmware update is success.
 
 ## BIOS Update Procedure
 
@@ -150,6 +145,14 @@ failed.
 ```
 
 ## CPLD  Update procedure - TBD
+
+
+## Redfish Support
+Redfish DMTF standard (DSP0270_1.3.0) Host Interface Specification supports for
+BMC to Host interface. Using this Redfish standards commands, firmware update of
+devices like BMC, BIOS, CPLD, etc is possible. User can specify the host which
+needs to be updated using Redfish. The device list can be generated using
+Inventory.
 
 
 ## Alternatives Considered
