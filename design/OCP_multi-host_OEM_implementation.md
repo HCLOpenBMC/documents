@@ -40,27 +40,25 @@ receiving via Bridge-IC.
      |                                   |     |  +----------------+  |
      |  +------------+    +----------+   |     |  |   OEM COMMANDS |  |
      |  |            |    |          |   |IPMB |  |                |  |
-     |  |            |    |          <---+-----+-->Ex:CPLD,BIC,VR, |  |
-     |  |            │    │          |   |     |  | BIOS FW Update |  |
-     |  |            │    │          |   |     |  +----------------+  |
-     |  |            │    |          |   |     |                      |
-     |  │ ocp_bicd   │    |ipmb      |   |     +----------------------+
-     |  │            |Dbus|   bridged|   |             H0ST2
-     |  │            <---->          |   |     +----------------------+
-     |  │            │    |          |   |     |        BIC           |
-     |  │            │    │          |   |     |  +----------------+  |
-     |  │            │    │          |   |IPMB |  | IPMB COMMANDS  |  |
-     |  │            │    │          <---+-----+-->                |  |
-     |  │            │    │          |   |     |  |Ex: getDeviceId |  |
-     |  └────────────┘    +----------+   |     |  |                |  |
+     |  |            |    |          +---+-----+-->Ex:CPLD,BIC,VR, |  |
+     |  |            |    |          |   |     |  | BIOS FW Update |  |
+     |  |            |    |          |   |     |  +----------------+  |
+     |  |            |    |          |   |     |                      |
+     |  | ocp_bicd   |    |ipmb      |   |     +----------------------+
+     |  |            |Dbus|   bridged|   |             H0ST2
+     |  |            +---->          |   |     +----------------------+
+     |  |            |    |          |   |     |        BIC           |
+     |  |            |    |          |   |     |  +----------------+  |
+     |  |            |    |          |   |IPMB |  | IPMB COMMANDS  |  |
+     |  |            |    |          +---+-----+-->                |  |
+     |  |            |    |          |   |     |  |Ex: getDeviceId |  |
+     |  +------------+    +----------+   |     |  |                |  |
      |                                   |     |  +----------------+  |
      |                                   |     |                      |
      +-----------------------------------+     +----------------------+
 
 ```
 
-The arrow points here for the command initiation from ocp_bicd to BIC.
-                                              
 The ipmbbriged is going to be the same all the ipmb commands to BIC is routed
 through this daemon. The ocp-bridge-ic will have a implementation for the
 complete features like firmware upgrade.
@@ -101,6 +99,7 @@ Ex: busctl call xyz.openbmc_project.Ipmi.Channel.Ipmb
 /xyz/openbmc_project/Ipmi/Channel/Ipmb org.openbmc.Ipmb sendRequest yyyyay
 0 6 0 0x1 0
 
+```
 #busctl tree xyz.openbmc_project.Ipmi.Channel.Ipmb
 └─/xyz
   └─/xyz/openbmc_project
@@ -124,6 +123,7 @@ org.freedesktop.DBus.Properties     interface -         -            -
 org.openbmc.Ipmb                    interface -         -            -
 .sendRequest                        method    yyyyay    (iyyyyay)    -
 
+```
 
 7) Then ipmbbridged forwards that oem commands to BIC.
 8) BIC process those oem commads and sends the response to the ipmbbridged.
