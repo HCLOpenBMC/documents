@@ -13,13 +13,12 @@ created:
 
 The Bridge IC is specific to OCP multi host platforms where in this BIC act as
 a bridge between host and BMC. All the communication between host and BMC is
-through BIC. The interface between the BMC and BIC is IPMB. This is applicable
-for yosemitev2. Going forward we will have other interfaces as well redfish
-also can be possible. There are standard and oem specific ipmb commands
-supported in BIC, many oem commands are specific to some oem feature. These
-oem commands should initiated from new daemon with new repository in openbmc.
-for example OEM BIOS upgrade through IPMB, OEM CPLD upgrade etc. So to handle
-this we may need a specific service to handle the BIC related features.
+through BIC. The interface between the BMC and BIC is IPMB. There are standard
+and oem specific ipmb commands supported in BIC, many oem commands are specific
+to some oem feature. These oem commands should initiated from new daemon with
+new repository in openbmc. for example OEM BIOS upgrade through IPMB, OEM CPLD
+upgrade etc. So to handle this we may need a specific service to handle the BIC
+related features.
 
 This design document focusing on oem commands for OCP multi host platforms, it
 supports features such as firmware upgrade of CPLD, VR, BIOS and BIC. The first
@@ -58,8 +57,6 @@ receiving via Bridge-IC.
      +-----------------------------------+     +----------------------+
 
 ```
-
-The arrow points here for the command initiation from ocp_bicd to BIC.
                                               
 The ipmbbriged is going to be the same all the ipmb commands to BIC is routed
 through this daemon. The ocp-bridge-ic will have a implementation for the
@@ -100,31 +97,6 @@ sent to ipmbbridged using sendRequest dbus method call.
 Ex: busctl call xyz.openbmc_project.Ipmi.Channel.Ipmb
 /xyz/openbmc_project/Ipmi/Channel/Ipmb org.openbmc.Ipmb sendRequest yyyyay
 0 6 0 0x1 0
-
-#busctl tree xyz.openbmc_project.Ipmi.Channel.Ipmb
-└─/xyz
-  └─/xyz/openbmc_project
-    └─/xyz/openbmc_project/Ipmi
-      └─/xyz/openbmc_project/Ipmi/Channel
-        └─/xyz/openbmc_project/Ipmi/Channel/Ipmb
-
-#busctl introspect xyz.openbmc_project.Ipmi.Channel.Ipmb
-                   /xyz/openbmc_project/Ipmi/Channel/Ipmb
-NAME                                TYPE      SIGNATURE RESULT/VALUE FLAGS
-org.freedesktop.DBus.Introspectable interface -         -            -
-.Introspect                         method    -         s            -
-org.freedesktop.DBus.Peer           interface -         -            -
-.GetMachineId                       method    -         s            -
-.Ping                               method    -         -            -
-org.freedesktop.DBus.Properties     interface -         -            -
-.Get                                method    ss        v            -
-.GetAll                             method    s         a{sv}        -
-.Set                                method    ssv       -            -
-.PropertiesChanged                  signal    sa{sv}as  -            -
-org.openbmc.Ipmb                    interface -         -            -
-.sendRequest                        method    yyyyay    (iyyyyay)    -
-
-
 7) Then ipmbbridged forwards that oem commands to BIC.
 8) BIC process those oem commads and sends the response to the ipmbbridged.
 9) Ipmbbridged forrwards the response the ocp-bicd daemon.
