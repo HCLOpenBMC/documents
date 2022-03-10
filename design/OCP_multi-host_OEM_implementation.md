@@ -176,12 +176,9 @@ failed.
 
 
 ## Redfish Support
-Redfish DMTF standard (DSP0270_1.3.0) Host Interface Specification supports for
-BMC to Host interface. Using this Redfish standards commands, firmware update of
-devices like BMC, BIOS, CPLD, etc is possible. User can specify the host which
-needs to be updated using Redfish. The device list can be generated using
-Inventory.
-
+Redfish DMTF standard (DSP2062_1.0.0) supports for firmware update of devices
+like BMC, BIOS, CPLD, etc. User can specify the host which needs to be updated
+using Redfish. The device list can be generated using Inventory.
 
 ## Alternatives Considered
 
