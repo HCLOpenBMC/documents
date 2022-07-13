@@ -1,22 +1,20 @@
 # Software Update for Multiple Devices Support
 
-Author: Priyatharshan P, [priyatharshanp@hcl.com]
+Author: Kumar Thangavel, [thangavel.k@hcl.com]
 
-Other contributors: Carlos J. Mazieri [carlos.mazieri@hcl.com],
-                    Kumar Thangavel [thangavel.k@hcl.com]
+Other contributors: Carlos J. Mazieri [carlos.mazieri@hcl.com]
 
 Created: Nov 18 2020
 
-Updated: Jan 31 2021
+Updated: Jul 12 2021
 
 ## Terms Used In This Document
-| TERM | MEANING |
--------|-----------
-| **firmware**  | synonym of *software* or a specific type of software|
-| **image**     | synonym of *software*, a package ready to install|
-| **device**    | hardware controlled by a BMC|
-| **host**      | synonym of *device* |
-| **A/B**       | both terms  **A** and **B** apply to the meaning|
+
+ **firmware**  - synonym of *software* or a specific type of software
+ **image**     - synonym of *software*, a package ready to install
+ **device**    - hardware controlled by a BMC
+ **host**      - synonym of *device*
+ **A/B**       - both terms  **A** and **B** apply to the meaning
 
 ## Problem Description
 The current implementation in the phosphor-bmc-code-mgmt supports
@@ -37,46 +35,44 @@ devices/hosts as applicable.
 - The software/firmware image will be deleted after updating only if the
 whole set of devices/hosts have been updated. It means, the image will not
 be deleted if the image is applicable for four devices/hosts and the user has
-updated three of four. For these three devices/hosts and the image will be
-deleted after updating them.
+updated three of four.
 
 ## Proposed Design
 This document proposes a new design engaging a phosphor-bmc-code-mgmt to update
-software/firmware for multiple devices/hosts in the system. Provided below the
-implementation steps.
+software/firmware for multiple devices/hosts in the system. Provided below are
+the implementation steps.
 
 ### Software update details from the BMC inventory
 The ItemUpdater collects the software update details like devices/hosts list
 from BMC inventory of entity-manager with Inventory.Decorator.Compatible
-interface and "IMAGETYPE=" property that can be updated with the new software/
-firmware based on the software/firmware release. The software/firmware
-"Image Type" include but not limited to:
+interface. Using this Compatible interface, ItemUpdater collects type, sub type
+of Firmware image and versions information also.
+
+The ItemUpdater also collects the list of "Image Type" each device/host can be
+assigned to. This "Image Type" list collects from Inventory Decorator.
+Compatible interface.
+
+The software/firmware "Image Type" include but not limited to:
 
 - BIOS
 - CPLD
 - VR
 - BIC firmware
-- ME firmware
 
-The ItemUpdater also collects the list of "Image Type" each device/host can be
-assigned to. This "Image Type" list collects from Inventory Decorator.
-Compatible interface and IMAGETYPE=" property from entity-manager for each
-device.
-
-Similarly, the host details for software update also getting from inventory.
-It supports all the "Image Type" as like BMC update.
+Similarly, the host details for software updates are retrieved from inventory.
+ItemUpdater supports all the "Image Type" as like BMC update.
 
 ### Proposal: A new *ItemUpdater* with "ImageType" and "HostId" identification
 
 Another new single *ItemUpdater* instance specific for device/hosts software
 update will be in place in the software manager. The implementation steps are
-mentioned below. All the software/firmware (BIOS, CPLD, VR, ME, etc) can be
-updated through their respective interfaces easily through this method. This
-new instance is generic for all image types.
+mentioned below. All the software/firmware (BIOS, CPLD, VR, etc) can be updated
+through their respective interfaces easily through this method. This new
+instance is generic for all image types.
 
 #### New objects creation based on inventory
 - New objects will be created under the new dbus service
-*xyz.openbmc_project.Software.Host.Updater* for all the devices/hosts
+*xyz.openbmc_project.Software.Device.Updater* for all the devices/hosts
 identified from inventory. Each object will have the *Activation* interface to
 perform the software update.
 
@@ -94,17 +90,17 @@ layer [OBMC_HOST_INSTANCES], example:
 ### Image Type detection
 The proposed solution sets as **mandatory** the *"Image Type"* detection, in
 case it cannot be done, the update will not be performed.
-There are three possibilities of the identification in the following order:
-- A new and specific field "ImageType" present in the MANIFEST file, It
-just identifies the image type. This ImageType follows the compatible
+There are two possibilities of the identification in the following order:
+- A new and specific field "Compatible" present in the MANIFEST file, It
+just identifies the image type. This Compatible follows the compatible
 string format. The example format has been added in MANIFEST file.
 (see the section MANIFEST File Changes Proposal).
 - The file name, the type of the image can be detected by the "MANIFEST"
 file which has compatibility string format. The file name contains an isolated
-sub-string such as "BIOS","CPLD", "VR", "BIC" or "ME" (both upper and lower
-cases) just identifies the image type.
+sub-string such as "BIOS","CPLD", "VR" or "BIC" (both upper and lower cases)
+just identifies the image type.
 
-Isolated sub-string is BIOS, CPLD , BIC etc after the filename with '.' The
+Isolated sub-string is BIOS, CPLD, BIC etc after the filename with '.' The
 format of the image.
 
 The Compatible string has to be parsed and compared the each element separated
@@ -113,18 +109,18 @@ be compared with exact match.
 
 Examples: "bios.bin" identifies "BIOS" image because the word "bios" is
 isolated (followed by a *dot*), but  "biosxx.bin" does not identify any image
-type. Besides *dots*, *underscores* and *minus signs* are also considered
+type. Besides *dots*, *underscores* and *hyphen* are also considered
 delimiters in file names.
 - File text content, an isolated word in uppercase present in a text file other
-than MANIFEST such as "BIOS", "CPLD", "VR", "BIC" or "ME" just identifies the
-image type.
+than MANIFEST such as "BIOS", "CPLD", "VR", "BIC" just identifies the image
+type.
 
 ### Image Type association with devices/hosts
 It is also **mandatory** that the devices/hosts accept the detected
 *"Image Type"*.
 The inventory and/or the entity manager will provide information about what are
 the "Image Type" accepted the devices/hosts, in case they do not match
-the software update will not be performed.
+the software update will not be performed for that device/hosts.
 
 ### Objects creation based on Hosts and Image Type
 The code will create N number of objects based on hosts and the image type
@@ -133,7 +129,7 @@ for the examples below consider that the inventory contains only images type of
 *"BIOS"* and *"CPLD"* and hosts ids are: *"1"*, *"2"*, *"3"* and *"4"*:
 - **single-host, "BIOS" image type detected**
 ```
-        $ busctl tree xyz.openbmc_project.Software.Host.Updater
+        $ busctl tree xyz.openbmc_project.Software.Device.Updater
         └─/xyz
             └─/xyz/openbmc_project
                 └─/xyz/openbmc_project/software
@@ -141,17 +137,17 @@ for the examples below consider that the inventory contains only images type of
                 └─/xyz/openbmc_project/software/1a56bff3/bios  # Activation
 
 ```
-- **multi-host, "CPLD" image type detected**
+- **multi-host, "BIOS" image type detected**
 ```
-        $ busctl tree xyz.openbmc_project.Software.Host.Updater
+        $ busctl tree xyz.openbmc_project.Software.Device.Updater
         └─/xyz
             └─/xyz/openbmc_project
                 └─/xyz/openbmc_project/software
                 ├─/xyz/openbmc_project/software/1a56bff3
-                │   ├─/xyz/openbmc_project/software/1a56bff3/cpld_1 # Activation
-                │   ├─/xyz/openbmc_project/software/1a56bff3/cpld_2 # Activation
-                │   └─/xyz/openbmc_project/software/1a56bff3/cpld_3 # Activation
-                └─────/xyz/openbmc_project/software/1a56bff3/cpld_4 # Activation
+                │   ├─/xyz/openbmc_project/software/1a56bff3/bios_1 # Activation
+                │   ├─/xyz/openbmc_project/software/1a56bff3/bios_2 # Activation
+                │   └─/xyz/openbmc_project/software/1a56bff3/bios_3 # Activation
+                └─────/xyz/openbmc_project/software/1a56bff3/bios_4 # Activation
 ```
 
 ### Service Files
@@ -171,34 +167,39 @@ ImageID "1a56bff3", the ImageType "BIOS" and the HostID "1":
     |:-----| :----|
     | name| obmc-flash-software@.service |
     |calls single-host|obmc-flash-software@1a56bff3-bios.service|
-    |calls mulit-host|obmc-flash-software@1a56bff3-bios-1.service|
+    |calls multi-host|obmc-flash-software@1a56bff3-bios-1.service|
 - Service File example
 ```
     [Unit]
     Description=host service flash, the %i can be in the form \\
                      imageid-imagetype-hostid
-     
+
     [Service]
     Type=exec
     RemainAfterExit=no
 
     ExecStart=[flash tool here]  %i
 ```
-Different BIOS update is possible with compatible string using type with Rev.
+Different BIOS update is possible with differnt hardware using compatible
+string format using type with EVT/DVT/PVT.
 
-Example : If wanted to update Bios with two versions 1 and 2 like Bios_1,
-Bios_2. So, we can use this compatible string and check the type as Host.Bios
-and revisions as 1 and 2. We compare with exact string match with type and Rev.
+Example : If different BIOS is required for two hardware revisions, we can use
+this compatible string and check the type as Host.Bios and revisions as
+EVT/DVT/PVT. If the EVT/DVT/PVT has revisions, we can have EVT1, EVT2, etc,.
+We compare with exact string match with type and Revision.
 
-ImageType=com.facebook.Software.Element.TwinLake.Type.Host.Bios.1
-ImageType=com.facebook.Software.Element.TwinLake.Type.Host.Bios.2
+com.facebook.Hardware.YosemiteV2.TwinLake.EVT.BIOS
+com.facebook.Hardware.YosemiteV2.TwinLake.EVT1.BIOS
+com.facebook.Hardware.YosemiteV2.TwinLake.EVT2.BIOS
+com.facebook.Hardware.YosemiteV2.TwinLake.DVT.BIOS
+com.facebook.Hardware.YosemiteV2.TwinLake.PVT.BIOS
 
-With Different Revisions, we can handle different BIOS methods. Revision number
-and Type should vary between the different BIOS update methods.
+With Different Hardware Revisions, we can handle different BIOS methods.
+Revision number and Type should vary between the different BIOS update methods.
 
 Images can be differentiated and identified by compatible string format.
 
-All Bios update methods are handling using Ipmb commands in Bridge IC.
+All BIOS update methods are handling using Ipmb commands in Bridge IC.
 So,BIC accepts only valid format of data for firmware update commands for
 different cards. The command data is different for each card.
 
@@ -213,7 +214,7 @@ activated performing in this case parallel update.
 match (see Image Cleaning section).
 
 ### Software Update Progress
-Software update process can be monitored using Progress D-bus property under
+Software update progress can be monitored using Progress D-bus property under
 ActivationProgress interface in xyz.openbmc_project.Software.Version
 dbus-service.
 
@@ -236,10 +237,10 @@ the image is done.
 
 ```
 
-If any errors or update fails in the middle of the custom flash tool, that
-systemd service which invokes the flash tool status can be updated with failed
-or inactive. Based on these systemd service states, ItemUpdater can get the
-error status.
+If the Systemd service which invokes the flash tool encounters an error or the
+update fails, the status of the service will also report failed or inactive
+status. Based on these systemd service states, ItemUpdater can get the error
+status.
 
 Based on the completed progress percentage, two image updates on same device can
 be avoided. ItemUpdater can activate the images only if that completed progress
@@ -256,8 +257,8 @@ is enabled.
 
 "AutoDelete" flag option is added to delete only for required device/hosts
 as per compatible image types if this "AutoDelete" flag is enabled and user
-not decided to do furthur updates. if this flag is not enabled, user has to
-remove the image manually.
+not decided to do furthur updates. If this flag is not enabled, user has to
+remove the image manually with delete dbus call.
 
 For example : Four hosts are compatible with this image and user wants only
 two hosts to be updated now and two hosts later. In this case, image delete
@@ -265,7 +266,7 @@ should not be done. So AutoDelete flag is used to handle this case.
 
 New D-bus property "AutoDelete" can be added under
 "xyz.openbmc_project.Object.Delete" interface for removing the images from
-disk once the image update is completed. if "AutoDelete" is disabled the
+disk once the image update is completed. If "AutoDelete" is disabled the
 image will not be removed from the disk. User has to remove the image
 manually.
 
@@ -281,12 +282,12 @@ This image delete logic is used for unused or un-applied images.
   .AutoDelete                        property  b  true emits-change writable
 ```
 
-#### Listen to image removal event
-For multi-host machines it may be necessary to have a mechanism of listening to
-image cleaning because when it is performed by the user it is also necessary to
-clean flags in the ItemUpdater. The Host ItemUpdater code is doing the
-watch/listening if user removes the image manually with D-bus delete call,
-then we need to remove the object path and clean the flags.
+If "AutoDelete" flag is set as "no" then existing image will not be deleted.
+If we try to copy new image for FW update, then BMC may run out of storage.
+To prevent this out of storage condition, the BMC will not allow the upload of
+another firmware update if the "AutoDelete" flag is set to "no". Firmware
+update will only be allowed to proceed if the "AutoDelete" flag is set to
+"yes".
 
 #### Using Redfish
 Redfish DMTF standard (DSP2062_1.0.0) supports for firmware update of devices
@@ -320,15 +321,16 @@ object */xyz/openbmc_project/software/bios_active* which can be removed.
 to "obmc-flash-software@.service".
 
 ### MANIFEST File Changes Proposal
-To reduce the risk of image type detection the field "ImageType" could
+To reduce the risk of image type detection the field "Compatible" could
 be added as optional in the MANIFEST file.
 
 Example:
 
    >
-   > ImageType=com.facebook.Software.Element.TwinLake.Type.Host.Bios.Rev
+   > Compatible=com.facebook.Software.Element.TwinLake.Type.Host.SubType.Gpio.
+     Bios.Rev
    >
-   > 
+   >
 
 ## Testing
 meta-yosemitev2 is a multi-host system [4 hosts].
