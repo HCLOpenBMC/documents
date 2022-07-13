@@ -10,11 +10,11 @@ Updated: Jul 12 2021
 
 ## Terms Used In This Document
 
- **firmware**  - synonym of *software* or a specific type of software
- **image**     - synonym of *software*, a package ready to install
- **device**    - hardware controlled by a BMC
- **host**      - synonym of *device*
- **A/B**       - both terms  **A** and **B** apply to the meaning
+- **firmware**  - synonym of *software* or a specific type of software
+- **image**     - synonym of *software*, a package ready to install
+- **device**    - hardware controlled by a BMC
+- **host**      - synonym of *device*
+- **A/B**       - both terms  **A** and **B** apply to the meaning
 
 ## Problem Description
 The current implementation in the phosphor-bmc-code-mgmt supports
