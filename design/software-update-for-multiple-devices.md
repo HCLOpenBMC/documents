@@ -69,7 +69,7 @@ ItemUpdater supports all the "Image Type" as like BMC update.
 
 Another new single *ItemUpdater* instance like "phosphor-bmc-image-updater" and
 "phosphor-host-image-updater" will be created and specific for device/hosts
-software update will be in place in the software manager. 
+software update will be in place in the software manager.
 
 The implementation steps are mentioned below. All the software/firmware (BIOS,
 CPLD, VR, etc) can be updated through their respective interfaces easily through
@@ -100,13 +100,14 @@ performed.
 
 There are two possibilities of the identification in the following order:
 - A new and specific field "Compatible" present in the MANIFEST file, It just
-  identifies the image type. This Compatible follows the compatible string
-format.  The example format has been added in MANIFEST file.  (see the section
-MANIFEST File Changes Proposal).
-- The type of the image can be detected by the "MANIFEST" file which has
-  compatibility string format. It contains an isolated sub-string such as
-"BIOS", CPLD", "VR" or "BIC" (both upper and lower cases) just identifies the
-image type.
+identifies the image type. This Compatible follows the compatible string
+format with sub-string such as "BIOS", "CPLD". The example format has been added
+in MANIFEST file.  (see the section MANIFEST File Changes Proposal).
+
+- The type of the image can be detected by the compatibility string format in
+Decorator.Compatible interface under dbus object of each image. It contains an
+isolated sub-string such as "BIOS", CPLD", "VR" or "BIC"
+(both upper and lower cases) just identifies the image type.
 
 Isolated sub-string is BIOS, CPLD, BIC etc after the filename with '.' The
 format of the image.
@@ -164,9 +165,12 @@ The current software version that supports flashing "BIOS" firmware and defines
 the Service File as "obmc-flash-bios@.service" which receives the "image id" as
 parameter.  Having a generic devices/hosts list and supported image types coming
 from the inventory requires a unique Service File for all image types such as
-"obmc-flash-software@.service".  The parameter brings all the information in the
-form: **ImageID-ImageType[-HostID]**, where the "HostID" part will be present
-only for multi-host machines.
+"obmc-flash-software@.service".
+
+The parameter brings all the information in the form:
+**ImageID-ImageType[-HostID]**, where the "HostID" part will be present only
+for multi-host machines.
+
 - Service File and calls example using the ImageID "1a56bff3", the ImageType
   "BIOS" and the HostID "1":
 
@@ -174,7 +178,7 @@ only for multi-host machines.
 - **calls single-host** - obmc-flash-software@1a56bff3-bios.service
 - **calls multi-host**  - obmc-flash-software@1a56bff3-bios-1.service
 
-- Service File example 
+- Service File example
 ```
     [Unit]
     Description=host service flash, the %i can be in the form \\
@@ -281,7 +285,7 @@ cleaning.
 This image delete logic is used for unused or un-applied images.
 
 ``` xyz.openbmc_project.Object.Delete  interface -  -    -
-    .Delete                            method    -  -    - 
+    .Delete                            method    -  -    -
     .AutoDelete                        property  b  true emits-change writable
 ```
 
@@ -299,13 +303,13 @@ using Redfish. The device list can be generated using BMC Inventory.
 Following commands could possibly be considered for the redfish support.
 
 To configure the host for bios update, For Host1:
-``` 
+```
     property : system1 path :
     https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system1/BIOS.
 
 ```
 For Host3:
-``` 
+```
     property : system3 path :
     https://${bmc}/redfish/v1/UpdateService/FirmwareInventory/system3/BIOS.
 
