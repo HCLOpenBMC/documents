@@ -66,7 +66,7 @@ phosphor-state-manager those are
 
 4. in our system one more additional power line which represents a sled
    power reset, For that need to add an object in phosphor-state-manager
-    it should be
+   it should be
 
    Example :
            Object path: /xyz/openbmc_project/state/chassis_system0
@@ -143,14 +143,12 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
      `-/xyz/openbmc_project
        `-/xyz/openbmc_project/state
          `-/xyz/openbmc_project/state/chassis_systemN
-
    ```
    The following interface is created for slot power on, off, and reboot
    state transition request
 
    ```
    xyz.openbmc_project.State.Chassis
-
    ```
 
    The following property is the part of slot power on and off state
@@ -159,7 +157,6 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
    ```
    .RequestedPowerTransition - This property shows the power transition
                         (xyz.openbmc_project.State.Chassis.Transition.On/Off/Reboot)
-
    ```
    Based on the transition request the respective mapped target will call
    and bash script will take the remaining action, based on transition request.
@@ -177,7 +174,6 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
 
    .RequestedPowerTransition - This property shows the power transition
                           (xyz.openbmc_project.State.Chassis.Transition.Reboot)
-
    ```
 
 3. To read pgood status of the multi-host system, in existing phosphor-state
@@ -193,12 +189,11 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
    ```
      /xyz/openbmc_project/state/chassis_system0
      .RequestedPowerTransition - Reboot
-
    ```
 ## Impact
 
 The change only adds the new DBUS interface to discover the slot power
-transition state request so there is no impact in case it is the impact
+transition state request so there is no impact if it's impact to
 another platform we can implement only in our system.
 
  Example : set flag for only in our system.
