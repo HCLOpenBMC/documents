@@ -12,15 +12,14 @@ created:
 
 ## Problem Description
 
-In our machine, the complete power control will be done using the 
+In our machine, the complete power control will be done using the
 phosphor-state-manager
 
-In phosphor-state-manager makes extensive use of systemd. It
-follows the use of systemd targets, so we preferred to control
-our system uses the phosphor-state-manager because in our system 
-the GPIOs are not used (or not available) directly to control the
-power of the system. if GPIOs are used we thought of going with 
-x86-power-control.
+In phosphor-state-manager makes extensive use of systemd. It follows the use of
+systemd targets, so we preferred to control our system uses the
+phosphor-state-manager because in our system the GPIOs are not used (or not
+available) directly to control the power of the system. if GPIOs are used we
+thought of going with x86-power-control.
 
 ** supported transition items in the phosphor-state-manager
 
@@ -73,10 +72,11 @@ phosphor-state-manager those are
 
 ## Background and References
 
-The below-mentioned DBUS object is created to handle the slot power on,
-off, and reboot in x86-power-control. So the same thing needs to
-implement here as well. The reference link is mentioned here.
+The below-mentioned DBUS object is created to handle the slot power on, off, and
+reboot in x86-power-control. So the same thing needs to implement here as well.
+The reference link is mentioned here.
 
+   ```
    * Interface: xyz.openbmc_project.State.Chassis
    * Object path: /xyz/openbmc_project/state/chassis_system1
                   /xyz/openbmc_project/state/chassis_system2
@@ -84,15 +84,15 @@ implement here as well. The reference link is mentioned here.
                   .
                   .
                   /xyz/openbmc_project/state/chassis_systemN
-
+   ```
 
 link for the reference:
 https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L3058
 
 ## Requirements
 
-1. The slot power on, off, and reboot state transition request needs to implement
-   in the phosphor-state-manager. For example, the transition request 
+1. The slot power on, off, and reboot state transition request needs to
+   implement in the phosphor-state-manager. For example, the transition request
    implementation for the slot on, off, and reboot should be,
 
     * Interface: xyz.openbmc_project.State.Chassis
@@ -103,17 +103,16 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
                   /xyz/openbmc_project/state/chassis_systemN
     * Transition: On, Off, Reboot
 
-2. For chassis Reboot transition request is required for the chassis
-   power cycle it should be,
+2. For chassis Reboot transition request is required for the chassis power cycle
+   it should be,
 
     * Chassis: RequestedPowerTransition: Reboot
 
-3. Add support for checking pgood status of the multi-host system in
-   the phosphor-state-manager.
+3. Add support for checking pgood status of the multi-host system in the
+   phosphor-state-manager.
 
-4. Add support for state transition request to sled for complete sled
-   cycle. and also need introduce a new object chassis_system0 for
-   the sled cycle.
+4. Add support for state transition request to sled for complete sled cycle. and
+   also need introduce a new object chassis_system0 for the sled cycle.
 
     * Object path: /xyz/openbmc_project/state/chassis_system0
     * RequestedPowerTransition: Reboot
@@ -144,25 +143,25 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
        `-/xyz/openbmc_project/state
          `-/xyz/openbmc_project/state/chassis_systemN
    ```
-   The following interface is created for slot power on, off, and reboot
-   state transition request
+   The following interface is created for slot power on, off, and reboot state
+   transition request
 
    ```
    xyz.openbmc_project.State.Chassis
    ```
 
-   The following property is the part of slot power on and off state
-   transition request
+   The following property is the part of slot power on and off state transition
+   request
 
    ```
    .RequestedPowerTransition - This property shows the power transition
                         (xyz.openbmc_project.State.Chassis.Transition.On/Off/Reboot)
    ```
-   Based on the transition request the respective mapped target will call
-   and bash script will take the remaining action, based on transition request.
+   Based on the transition request the respective mapped target will call and
+   bash script will take the remaining action, based on transition request.
 
-2. For chassis need to implement power cycle or reboot transition 
-   request in the phosphor-state-manager. It should be
+2. For chassis need to implement power cycle or reboot transition request in the
+   phosphor-state-manager. It should be
 
    Example :
 
@@ -177,9 +176,15 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
    ```
 
 3. To read pgood status of the multi-host system, in existing phosphor-state
-   -manager only supports single(single-host) property read for pgood status,
-   So need to change or add support to read (or monitor) the pgood status for
-   multi host system.
+   -manager only supports single(single-host) property read for pgood status, So
+   need to change or add support to read (or monitor) the pgood status for multi
+   host system.
+
+   The each sub-chaasis, host, and slot power, needs initial power status, So
+   need to determine initial state of power. A separate process or application
+   handle those initial status of power which has a property that holds the
+   initial power state. Then the phosphor-state-manager will update or determine
+   the initial state of power from it.
 
 4. For the sled power cycle need to implement or introduce new object and
    transition state, it should be
@@ -193,8 +198,8 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
 ## Impact
 
 The change only adds the new DBUS interface to discover the slot power
-transition state request so there is no impact if it's impact to
-another platform we can implement only in our system.
+transition state request so there is no impact if it's impact to another
+platform we can implement only in our system.
 
  Example : set flag for only in our system.
 
