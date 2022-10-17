@@ -12,14 +12,16 @@ created:
 
 ## Problem Description
 
-In our machine, the complete power control will be done using the
-phosphor-state-manager
+The plan is to use phosphor-state-manager for the complete power-control of the
+machine.
 
-In phosphor-state-manager makes extensive use of systemd. It follows the use of
-systemd targets, so we preferred to control our system uses the
-phosphor-state-manager because in our system the GPIOs are not used (or not
-available) directly to control the power of the system. if GPIOs are used we
-thought of going with x86-power-control.
+The platform or the machine which is targeted does not have the regular design
+of having different GPIO lines for the power control operation.  The
+x86-power-control is specifically designed to use the power control using GPIOs
+and phosphor-state-manager look more suitable for this application as it uses a
+systemd target and it could machine-specific operations. The power of the host
+shall be controlled using ipmb interface or I2C with a set of oem specific ipmb
+commands or I2C commands.
 
 ** supported transition items in the phosphor-state-manager
 
@@ -35,9 +37,9 @@ phosphor-state-manager those are
 1. In our system there is a separate power line under the sub-chassis (slot 
    power) for that, there is a support, target, or state map which is not 
    available, so needs to introduce a new DBUS object in the phosphor-
-   state-manager to handle the slot power(sub-chassis).
+   state manager to handle the slot power(sub-chassis).
    
-   In x86-power-control the above mentioned requirements are handled
+   In x86-power-control the above-mentioned requirements are handled
    with chassis_system1..N for slot power on, off, and reboot. So
    need to implement the targets for the sub-chassis (chassis_system) 
    to control the power of the slot in the phosphor-state-manager.
@@ -48,9 +50,9 @@ phosphor-state-manager those are
 
     * sub-chassis power on (slot power on)
     * sub-chassis power off (slot power off)
-    * sub-chassis power reboot (slot power reboot)
+    * sub-chassis power reboot (slot power cycle)
 
-2. In the existing phosphor-state manager for chassis the following 
+2. In the existing phosphor-state manager for chassis, the following
    supports are available that is  On and Off (RequestedPowerTransition).
    but for reboot transition request needs to implement in the
    phosphor-state-manager
@@ -72,13 +74,13 @@ phosphor-state-manager those are
 
 ## Background and References
 
-The below-mentioned DBUS object is created to handle the slot power on, off, and
-reboot in x86-power-control. So the same thing needs to implement here as well.
-The reference link is mentioned here.
+The following are the dbus interfaces proposed to be created to handle the
+slot power control, ie on, off, and, cycle.
 
    ```
-   * Interface: xyz.openbmc_project.State.Chassis
-   * Object path: /xyz/openbmc_project/state/chassis_system1
+   Interface: xyz.openbmc_project.State.Chassis
+
+   Object path: /xyz/openbmc_project/state/chassis_system1
                   /xyz/openbmc_project/state/chassis_system2
                   .
                   .
@@ -91,9 +93,10 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
 
 ## Requirements
 
-1. The slot power on, off, and reboot state transition request needs to
-   implement in the phosphor-state-manager. For example, the transition request
-   implementation for the slot on, off, and reboot should be,
+1. The slot power control or sub-chassis power control is currently not
+   supported and it is proposed to be added to the phosphor-state-manager.
+   For example, the transition request implementation for the slot on, off,
+   and slot power cycle should be,
 
     * Interface: xyz.openbmc_project.State.Chassis
     * object path: /xyz/openbmc_project/state/chassis_system1
@@ -101,28 +104,33 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
                   .
                   .
                   /xyz/openbmc_project/state/chassis_systemN
-    * Transition: On, Off, Reboot
+    * Transition: On, Off, PowerCycle
 
-2. For chassis Reboot transition request is required for the chassis power cycle
-   it should be,
+2. Currently the chassis on/off is supported and it is proposed to add
+   reboot along with on/off, it should be,
 
     * Chassis: RequestedPowerTransition: Reboot
 
-3. Add support for checking pgood status of the multi-host system in the
-   phosphor-state-manager.
+3. Add support for monitoring power good status for the individual host and
+   the sub-chassis. As per the current implementation, the power good
+   status is monitored only for the power supply.
 
-4. Add support for state transition request to sled for complete sled cycle. and
-   also need introduce a new object chassis_system0 for the sled cycle.
+4. Add support for sled cycle, to control complete sled power cycle. The
+   implementation for sled power cycle should be
 
-    * Object path: /xyz/openbmc_project/state/chassis_system0
-    * RequestedPowerTransition: Reboot
+    Example :
+
+    ```
+    Object path: /xyz/openbmc_project/state/chassis_system0
+    RequestedPowerTransition: PowerCycle
+    ```
 
 ## Proposed Design
 
 1. This document proposes a design to implement the following state request
    transition for slot power on, off, and reboot in the phosphor-state-manager.
 
-   The implementation for slot power off/on/reboot transition should be
+   The implementation for slot power off/on/cycle transition should be
 
    Example :
 
@@ -143,7 +151,7 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
        `-/xyz/openbmc_project/state
          `-/xyz/openbmc_project/state/chassis_systemN
    ```
-   The following interface is created for slot power on, off, and reboot state
+   The following interface is created for slot power on, off, and cycle state
    transition request
 
    ```
@@ -155,12 +163,12 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
 
    ```
    .RequestedPowerTransition - This property shows the power transition
-                        (xyz.openbmc_project.State.Chassis.Transition.On/Off/Reboot)
+                        (xyz.openbmc_project.State.Chassis.Transition.On/Off/Powercycle)
    ```
    Based on the transition request the respective mapped target will call and
-   bash script will take the remaining action, based on transition request.
+   the bash script will take the remaining action, based on the transition request.
 
-2. For chassis need to implement power cycle or reboot transition request in the
+2. For chassis need to implement a power cycle or reboot transition request in the
    phosphor-state-manager. It should be
 
    Example :
@@ -180,14 +188,14 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
    need to change or add support to read (or monitor) the pgood status for multi
    host system.
 
-   The each sub-chaasis, host, and slot power, needs initial power status, So
-   need to determine initial state of power. A separate process or application
+   Each sub-chaasis, host, and slot power need initial power status, So
+   need to determine the initial state of power. A separate process or application
    handle those initial status of power which has a property that holds the
    initial power state. Then the phosphor-state-manager will update or determine
    the initial state of power from it.
 
 4. For the sled power cycle need to implement or introduce new object and
-   transition state, it should be
+   transition state, and it should be
 
    Example :
 
@@ -199,9 +207,9 @@ https://github.com/openbmc/x86-power-control/blob/master/src/power_control.cpp#L
 
 The change only adds the new DBUS interface to discover the slot power
 transition state request so there is no impact if it's impact to another
-platform we can implement only in our system.
+the platform we can implement only in our system.
 
- Example : set flag for only in our system.
+ Example: set flag for only in our system.
 
 ## Testing
 
